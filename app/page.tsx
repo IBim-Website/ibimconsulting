@@ -1,65 +1,140 @@
-import Image from "next/image";
+// app/page.tsx
+"use client";
+
+import React, { useState, useEffect } from "react";
+import Welcome from "@/components/Welcome";
+import JournalDashboard from "@/components/JournalDashboard";
+import MonthlyJournal from "@/components/MonthlyJournal";
+
+// We need to share this type with multiple components
+export interface IFeelingsEntry {
+  feelings: string;
+  situation: string;
+  significance: string;
+}
+
+export interface IGoalEntry {
+  details: string;
+  lastMonth: "N/A" | "Hit" | "Miss";
+  nextMonth: string;
+}
+
+export interface IJournalData {
+  id: string; // Added ID for list key
+  month: string;
+  feelings: {
+    familyHigh: IFeelingsEntry;
+    familyLow: IFeelingsEntry;
+    personalHigh: IFeelingsEntry;
+    personalLow: IFeelingsEntry;
+    businessHigh: IFeelingsEntry;
+    businessLows: IFeelingsEntry;
+  };
+  personalGoals: [IGoalEntry, IGoalEntry, IGoalEntry];
+  businessGoals: [IGoalEntry, IGoalEntry, IGoalEntry];
+}
+
+// --- LocalStorage Keys ---
+const NAME_KEY = "journalUserName";
+const IN_PROGRESS_KEY = "monthlyJournalData";
+const COMPLETED_KEY = "completedJournalsList";
+
+type View = "loading" | "welcome" | "dashboard" | "journaling";
 
 export default function Home() {
+  const [userName, setUserName] = useState<string | null>(null);
+  const [view, setView] = useState<View>("loading");
+  
+  const [inProgressJournal, setInProgressJournal] = useState<IJournalData | null>(null);
+  const [completedJournals, setCompletedJournals] = useState<IJournalData[]>([]);
+
+  // --- Initial Data Load Effect ---
+  useEffect(() => {
+    const name = localStorage.getItem(NAME_KEY);
+    const inProgress = localStorage.getItem(IN_PROGRESS_KEY);
+    const completed = localStorage.getItem(COMPLETED_KEY);
+
+    if (inProgress) {
+      setInProgressJournal(JSON.parse(inProgress));
+    }
+    if (completed) {
+      setCompletedJournals(JSON.parse(completed));
+    }
+
+    if (!name) {
+      setView("welcome");
+    } else {
+      setUserName(name);
+      setView("dashboard");
+    }
+  }, []);
+
+  // --- Handlers ---
+
+  const handleNameSet = (name: string) => {
+    localStorage.setItem(NAME_KEY, name);
+    setUserName(name);
+    setView("dashboard");
+  };
+
+  const handleStartJournal = () => {
+    setView("journaling");
+  };
+
+  const handleExitJournal = () => {
+    setView("dashboard");
+  };
+
+  const handleCompleteJournal = (data: IJournalData) => {
+    // Add a unique ID and save to completed list
+    const completedJournal = { ...data, id: new Date().toISOString() };
+    const newCompletedList = [completedJournal, ...completedJournals];
+    
+    setCompletedJournals(newCompletedList);
+    localStorage.setItem(COMPLETED_KEY, JSON.stringify(newCompletedList));
+
+    // Clear the in-progress journal
+    setInProgressJournal(null);
+    localStorage.removeItem(IN_PROGRESS_KEY);
+
+    setView("dashboard");
+  };
+
+  // --- Render Logic ---
+
+  const renderView = () => {
+    switch (view) {
+      case "welcome":
+        return <Welcome onNameSet={handleNameSet} />;
+      case "dashboard":
+        return (
+          <JournalDashboard
+            userName={userName || ""}
+            onStartJournal={handleStartJournal}
+            completedJournals={completedJournals}
+            hasInProgress={!!inProgressJournal}
+          />
+        );
+      case "journaling":
+        return (
+          <MonthlyJournal
+            userName={userName || ""}
+            onCompleteJournal={handleCompleteJournal}
+            onExit={handleExitJournal}
+            initialData={inProgressJournal}
+          />
+        );
+      case "loading":
+      default:
+        return (
+          <div className="text-white">Loading...</div> // A simple loader
+        );
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="min-h-screen bg-gray-100 dark:bg-black p-4 sm:p-10 flex items-start justify-center">
+      {renderView()}
+    </main>
   );
 }
