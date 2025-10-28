@@ -208,7 +208,13 @@ const getGoalData = (
 };
 
 // --- The PDF Document Component ---
-export default function JournalPdfDocument({ data, userName }: Props) {
+export default function JournalPdfDocument({
+  data,
+  userName,
+}: {
+  data: IJournalData;
+  userName: string | undefined;
+}) {
   const [month, year] = data.month.split(" ");
 
   return (

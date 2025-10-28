@@ -26,7 +26,13 @@ interface Props {
   data: IJournalData;
 }
 
-export default function ReadOnlyJournal({ data }: Props) {
+export default function ReadOnlyJournal({
+  data,
+  userName,
+}: {
+  data: IJournalData;
+  userName: string | undefined;
+}) {
   // ... (feelingRows constant is the same) ...
   const feelingRows = [
     { label: "Family High", data: data.feelings.familyHigh },
@@ -47,7 +53,7 @@ export default function ReadOnlyJournal({ data }: Props) {
         
         {/* --- ADDED EXPORT BUTTON --- */}
         <PDFDownloadLink
-          document={<JournalPdfDocument data={data} />}
+          document={<JournalPdfDocument data={data} userName={userName} />}
           fileName={`Journal - ${data.month}.pdf`}
         >
           {({ blob, url, loading, error }) => (

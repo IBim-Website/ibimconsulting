@@ -1,6 +1,6 @@
 // components/journal-steps/StepGoals.tsx
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 
 interface IGoalEntry {
   details: string;
@@ -38,7 +38,7 @@ function ChevronIcon({ isOpen }: { isOpen: boolean }) {
 }
 
 // Accordion Variants
-const accordionVariants = {
+const accordionVariants: Variants = {
   hidden: { opacity: 0, height: 0, marginTop: 0 },
   visible: { 
     opacity: 1, 

@@ -133,7 +133,7 @@ export default function JournalDashboard({
       {/* --- Read-Only Modal --- */}
       {viewingJournal && (
         <Modal onClose={() => setViewingJournal(null)}>
-          <ReadOnlyJournal data={viewingJournal} />
+          <ReadOnlyJournal data={viewingJournal} userName={userName} />
         </Modal>
       )}
     </>
