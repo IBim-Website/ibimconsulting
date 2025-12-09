@@ -1,26 +1,9 @@
-// components/journal-steps/StepGoals.tsx
+// components/journal-steps/StepGoals.jsx
 import React, { useState } from "react";
-import { motion, AnimatePresence, Variants } from "framer-motion";
-
-interface IGoalEntry {
-  details: string;
-  lastMonth: "N/A" | "Hit" | "Miss";
-  nextMonth: string;
-}
-
-interface Props {
-  title: string;
-  icon: React.ReactNode;
-  data: [IGoalEntry, IGoalEntry, IGoalEntry];
-  onChange: (
-    index: number,
-    field: keyof IGoalEntry,
-    value: string
-  ) => void;
-}
+import { motion, AnimatePresence } from "framer-motion";
 
 // Chevron Icon
-function ChevronIcon({ isOpen }: { isOpen: boolean }) {
+function ChevronIcon({ isOpen }) {
   return (
     <motion.svg
       xmlns="http://www.w3.org/2000/svg"
@@ -38,7 +21,7 @@ function ChevronIcon({ isOpen }: { isOpen: boolean }) {
 }
 
 // Accordion Variants
-const accordionVariants: Variants = {
+const accordionVariants = {
   hidden: { opacity: 0, height: 0, marginTop: 0 },
   visible: { 
     opacity: 1, 
@@ -48,11 +31,10 @@ const accordionVariants: Variants = {
   },
 };
 
+export const StepGoals = ({ title, icon, data, onChange }) => {
+  const [openGoals, setOpenGoals] = useState([0]);
 
-export const StepGoals = ({ title, icon, data, onChange }: Props) => {
-  const [openGoals, setOpenGoals] = useState<number[]>([0]);
-
-  const toggleGoal = (index: number) => {
+  const toggleGoal = (index) => {
     setOpenGoals(prev => 
       prev.includes(index)
         ? prev.filter(i => i !== index)
@@ -103,7 +85,6 @@ export const StepGoals = ({ title, icon, data, onChange }: Props) => {
                         <textarea
                           rows={3}
                           value={data[index].details}
-                          // --- VERIFIED THIS LINE (was e.targe.value) ---
                           onChange={(e) => onChange(index, "details", e.target.value)}
                           placeholder="Specific and measurable goal"
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 sm:text-base focus:border-gray-900 focus:ring-gray-900 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-white dark:focus:ring-white"
@@ -116,13 +97,11 @@ export const StepGoals = ({ title, icon, data, onChange }: Props) => {
                         </label>
                         <select
                           value={data[index].lastMonth}
-                          // --- VERIFIED THIS LINE ---
                           onChange={(e) => onChange(index, "lastMonth", e.target.value)}
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 sm:text-base focus:border-gray-900 focus:ring-gray-900 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:border-white dark:focus:ring-white"
                         >
                           <option>N/A</option>
                           <option>Hit</option>
-          
                           <option>Miss</option>
                         </select>
                       </div>
@@ -134,7 +113,6 @@ export const StepGoals = ({ title, icon, data, onChange }: Props) => {
                         <textarea
                           rows={3}
                           value={data[index].nextMonth}
-                          // --- VERIFIED THIS LINE ---
                           onChange={(e) => onChange(index, "nextMonth", e.target.value)}
                           placeholder="What's the next step?"
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 sm:text-base focus:border-gray-900 focus:ring-gray-900 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-white dark:focus:ring-white"

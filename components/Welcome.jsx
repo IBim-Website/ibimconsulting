@@ -1,17 +1,13 @@
-// components/Welcome.tsx
+// components/Welcome.jsx
 "use client";
 
 import React, { useState } from "react";
 import { Sparkles } from "lucide-react";
 
-interface Props {
-  onNameSet: (name: string) => void;
-}
-
-export default function Welcome({ onNameSet }: Props) {
+export default function Welcome({ onNameSet }) {
   const [name, setName] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (name.trim()) {
       onNameSet(name.trim());

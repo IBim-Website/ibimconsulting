@@ -1,4 +1,4 @@
-// components/JournalPdfDocument.tsx
+// components/JournalPdfDocument.jsx
 import React from "react";
 import {
   Document,
@@ -8,7 +8,6 @@ import {
   StyleSheet,
   Font,
 } from "@react-pdf/renderer";
-import { IJournalData, IFeelingsEntry, IGoalEntry } from "@/app/page";
 
 // --- Color Palette from Screenshots ---
 const colors = {
@@ -49,14 +48,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   monthYearContainer: {
-    // --- FIXED ---
     borderWidth: 1,
     borderStyle: "solid",
     borderColor: colors.tableBorder,
   },
   monthYearRow: {
     flexDirection: "row",
-    // --- FIXED ---
     borderBottomWidth: 1,
     borderBottomStyle: "solid",
     borderBottomColor: colors.tableBorder,
@@ -81,7 +78,6 @@ const styles = StyleSheet.create({
 
   // Feelings Table
   feelingsTable: {
-    // --- FIXED ---
     borderWidth: 1,
     borderStyle: "solid",
     borderColor: colors.tableBorder,
@@ -95,7 +91,6 @@ const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: "row",
-    // --- FIXED ---
     borderBottomWidth: 1,
     borderBottomStyle: "solid",
     borderBottomColor: colors.tableBorder,
@@ -108,7 +103,6 @@ const styles = StyleSheet.create({
   colFeelings: {
     width: "25%",
     padding: 8,
-    // --- FIXED ---
     borderLeftWidth: 1,
     borderLeftStyle: "solid",
     borderLeftColor: colors.tableBorder,
@@ -118,7 +112,6 @@ const styles = StyleSheet.create({
   colSituation: {
     width: "25%",
     padding: 8,
-    // --- FIXED ---
     borderLeftWidth: 1,
     borderLeftStyle: "solid",
     borderLeftColor: colors.tableBorder,
@@ -127,7 +120,6 @@ const styles = StyleSheet.create({
   colSignificance: {
     width: "30%",
     padding: 8,
-    // --- FIXED ---
     borderLeftWidth: 1,
     borderLeftStyle: "solid",
     borderLeftColor: colors.tableBorder,
@@ -141,7 +133,6 @@ const styles = StyleSheet.create({
   
   // --- Page 2: Goals ---
   goalsTable: {
-    // --- FIXED ---
     borderWidth: 1,
     borderStyle: "solid",
     borderColor: colors.tableBorder,
@@ -161,7 +152,6 @@ const styles = StyleSheet.create({
   colGoalNum: {
     width: "25%",
     padding: 8,
-    // --- FIXED ---
     borderLeftWidth: 1,
     borderLeftStyle: "solid",
     borderLeftColor: "#0f364d", // Darker border for header
@@ -169,7 +159,6 @@ const styles = StyleSheet.create({
   colGoalContent: {
     width: "25%",
     padding: 8,
-    // --- FIXED ---
     borderLeftWidth: 1,
     borderLeftStyle: "solid",
     borderLeftColor: colors.tableBorder,
@@ -196,25 +185,16 @@ const styles = StyleSheet.create({
 });
 
 // --- Helper Functions to Get Data ---
-const getFeelingData = (data: IJournalData, key: keyof IJournalData["feelings"]) => {
+const getFeelingData = (data, key) => {
   return data.feelings[key] || { feelings: "", situation: "", significance: "" };
 };
 
-const getGoalData = (
-  goals: [IGoalEntry, IGoalEntry, IGoalEntry],
-  index: number
-) => {
+const getGoalData = (goals, index) => {
   return goals[index] || { details: "", lastMonth: "N/A", nextMonth: "" };
 };
 
 // --- The PDF Document Component ---
-export default function JournalPdfDocument({
-  data,
-  userName,
-}: {
-  data: IJournalData;
-  userName: string | undefined;
-}) {
+export default function JournalPdfDocument({ data, userName }) {
   const [month, year] = data.month.split(" ");
 
   return (
@@ -268,7 +248,7 @@ export default function JournalPdfDocument({
             { key: "businessHigh", label: "Business High", color: colors.gold },
             { key: "businessLows", label: "Business Lows", color: colors.gold },
           ].map((row) => {
-            const rowData = getFeelingData(data, row.key as keyof IJournalData["feelings"]);
+            const rowData = getFeelingData(data, row.key);
             return (
               <View style={styles.tableRow} key={row.key} wrap={false}>
                 <Text style={[styles.colArea, { backgroundColor: row.color, color: colors.white, fontFamily: "Helvetica-Bold" }]}>

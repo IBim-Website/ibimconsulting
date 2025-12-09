@@ -1,4 +1,4 @@
-// components/MonthlyJournal.tsx
+// components/MonthlyJournal.jsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -8,25 +8,17 @@ import {
   TrendingUp, TrendingDown, Target, Briefcase,
 } from "lucide-react";
 
-import { IJournalData, IFeelingsEntry, IGoalEntry } from "@/app/page";
 import { StepMonth } from "./journal-steps/StepMonth";
 import { StepFeeling } from "./journal-steps/StepFeeling";
 import { StepGoals } from "./journal-steps/StepGoals";
 
-interface Props {
-  userName: string;
-  initialData: IJournalData | null;
-  onCompleteJournal: (data: IJournalData) => void;
-  onExit: () => void;
-}
-
 const IN_PROGRESS_KEY = "monthlyJournalData";
 
-const createEmptyGoal = (): IGoalEntry => ({
+const createEmptyGoal = () => ({
   details: "", lastMonth: "N/A", nextMonth: "",
 });
 
-const initialState: Omit<IJournalData, 'id'> = {
+const initialState = {
   month: "",
   feelings: {
     familyHigh: { feelings: "", situation: "", significance: "" },
@@ -40,11 +32,7 @@ const initialState: Omit<IJournalData, 'id'> = {
   businessGoals: [createEmptyGoal(), createEmptyGoal(), createEmptyGoal()],
 };
 
-const feelingSteps: Array<{
-  key: keyof IJournalData["feelings"];
-  label: string;
-  icon: React.ReactNode;
-}> = [
+const feelingSteps = [
   { key: "familyHigh", label: "Family High", icon: <Heart className="w-8 h-8" /> },
   { key: "familyLow", label: "Family Low", icon: <HeartOff className="w-8 h-8" /> },
   { key: "personalHigh", label: "Personal High", icon: <Sparkles className="w-8 h-8" /> },
@@ -60,8 +48,8 @@ export default function MonthlyJournal({
   initialData,
   onCompleteJournal,
   onExit,
-}: Props) {
-  const [journalData, setJournalData] = useState<Omit<IJournalData, 'id'>>(
+}) {
+  const [journalData, setJournalData] = useState(
     initialData || initialState
   );
   const [currentStep, setCurrentStep] = useState(0);
@@ -73,16 +61,12 @@ export default function MonthlyJournal({
     localStorage.setItem(IN_PROGRESS_KEY, JSON.stringify(journalData));
   }, [journalData, initialData]);
 
-  const handleMonthChange = (value: string) => {
+  const handleMonthChange = (value) => {
     setJournalData((prev) => ({ ...prev, month: value }));
   };
 
   // --- This is the 3-argument function ---
-  const handleFeelingChange = (
-    key: keyof IJournalData["feelings"],
-    field: keyof IFeelingsEntry,
-    value: string
-  ) => {
+  const handleFeelingChange = (key, field, value) => {
     setJournalData((prev) => ({
       ...prev,
       feelings: {
@@ -95,14 +79,9 @@ export default function MonthlyJournal({
     }));
   };
 
-  const handleGoalChange = (
-    goalType: "personalGoals" | "businessGoals",
-    index: number,
-    field: keyof IGoalEntry,
-    value: string
-  ) => {
+  const handleGoalChange = (goalType, index, field, value) => {
     setJournalData((prev) => {
-      const newGoals = [...prev[goalType]] as [IGoalEntry, IGoalEntry, IGoalEntry];
+      const newGoals = [...prev[goalType]];
       newGoals[index] = { ...newGoals[index], [field]: value };
       return { ...prev, [goalType]: newGoals };
     });
@@ -218,7 +197,7 @@ export default function MonthlyJournal({
             </button>
           ) : (
             <button
-              onClick={() => onCompleteJournal(journalData as IJournalData)}
+              onClick={() => onCompleteJournal(journalData)}
               className="px-6 py-2 text-sm font-medium text-black bg-white rounded-md shadow-sm border border-gray-300 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 dark:text-black dark:bg-white dark:hover:bg-gray-200 dark:focus:ring-gray-400 dark:focus:ring-offset-gray-950"
             >
               Finish

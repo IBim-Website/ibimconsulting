@@ -1,16 +1,11 @@
-// components/Modal.tsx
+// components/Modal.jsx
 "use client";
 
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 
-interface Props {
-  onClose: () => void;
-  children: React.ReactNode;
-}
-
-export default function Modal({ onClose, children }: Props) {
+export default function Modal({ onClose, children }) {
   return (
     <AnimatePresence>
       <motion.div

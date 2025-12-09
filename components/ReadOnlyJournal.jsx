@@ -1,7 +1,6 @@
-// components/ReadOnlyJournal.tsx
+// components/ReadOnlyJournal.jsx
 import React from "react";
 import dynamic from "next/dynamic";
-import { IJournalData } from "@/app/page";
 import { Download, Loader2 } from "lucide-react";
 import JournalPdfDocument from "./JournalPdfDocument"; // Import the new PDF template
 
@@ -22,17 +21,7 @@ const PDFDownloadLink = dynamic(
   }
 );
 
-interface Props {
-  data: IJournalData;
-}
-
-export default function ReadOnlyJournal({
-  data,
-  userName,
-}: {
-  data: IJournalData;
-  userName: string | undefined;
-}) {
+export default function ReadOnlyJournal({ data, userName }) {
   // ... (feelingRows constant is the same) ...
   const feelingRows = [
     { label: "Family High", data: data.feelings.familyHigh },
@@ -48,7 +37,7 @@ export default function ReadOnlyJournal({
       {/* --- UPDATED HEADER --- */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl text-gray-900 dark:text-white">
-          Your Journal: {data.month}
+           {data.month} [ {data?.author} ]
         </h2>
         
         {/* --- ADDED EXPORT BUTTON --- */}

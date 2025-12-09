@@ -1,13 +1,13 @@
-// components/JournalDashboard.tsx
+// components/JournalDashboard.jsx
 "use client";
 
 import React, { useState } from "react";
 import dynamic from "next/dynamic";
 import { BookMarked, Plus, ArrowRight, Download, Loader2 } from "lucide-react";
-import { IJournalData } from "@/app/page";
+// Note: IJournalData type import removed as it's not needed in JS
 import Modal from "./Modal";
 import ReadOnlyJournal from "./ReadOnlyJournal";
-import JournalPdfDocument from "./JournalPdfDocument"; // Import the new PDF template
+import JournalPdfDocument from "./JournalPdfDocument"; 
 
 // --- CRITICAL: Dynamically import PDFDownloadLink ---
 // This prevents SSR errors since it needs the browser
@@ -23,22 +23,14 @@ const PDFDownloadLink = dynamic(
   }
 );
 
-interface Props {
-  userName: string;
-  onStartJournal: () => void;
-  completedJournals: IJournalData[];
-  hasInProgress: boolean;
-}
-
 export default function JournalDashboard({
   userName,
   onStartJournal,
   completedJournals,
   hasInProgress,
-}: Props) {
-  const [viewingJournal, setViewingJournal] = useState<IJournalData | null>(
-    null
-  );
+  isAdmin = false
+}) {
+  const [viewingJournal, setViewingJournal] = useState(null);
 
   return (
     <>
@@ -48,9 +40,10 @@ export default function JournalDashboard({
           Welcome back, {userName}.
         </h2>
         <p className="mt-2 text-xl text-gray-600 dark:text-gray-300">
-          Ready to reflect on your month?
+          { isAdmin ? "Here are the completed journals from your users." : "Ready to reflect on your month?"}
         </p>
-        <button
+        {
+          !isAdmin && (<button
           onClick={onStartJournal}
           className="mt-8 w-full sm:w-auto px-8 py-4 flex items-center justify-center gap-3 text-lg font-medium text-black bg-white rounded-md shadow-sm border border-gray-300 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 dark:text-black dark:bg-white dark:hover:bg-gray-200 dark:focus:ring-gray-400 dark:focus:ring-offset-gray-950"
         >
@@ -63,20 +56,21 @@ export default function JournalDashboard({
               Start New Monthly Journal <Plus className="w-5 h-5" />
             </>
           )}
-        </button>
+        </button>)
+        }
 
 
         {/* --- Completed Journals List (UPDATED) --- */}
         <div className="mt-12">
           <h3 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white flex items-center gap-3">
             <BookMarked className="w-7 h-7" />
-            Your Completed Journals
+            {isAdmin ? "All" : "Your"} Completed Journals
           </h3>
 
           <div className="mt-6 border-t border-gray-200 dark:border-gray-800">
             {completedJournals.length === 0 ? (
               <p className="py-8 text-center text-gray-500">
-                Your completed journals will appear here.
+                {isAdmin ? "All" : "Your"} completed journals will appear here.
               </p>
             ) : (
               <ul className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -91,14 +85,14 @@ export default function JournalDashboard({
                       className="flex-1 text-left"
                     >
                       <span className="text-lg font-medium text-gray-900 dark:text-white hover:underline">
-                        {journal.month}
+                        {journal.month} {isAdmin ? `[ ${journal?.author} ]` : ""}
                       </span>
                     </button>
                     <div className="flex items-center gap-2">
                       {/* --- ADDED DOWNLOAD BUTTON --- */}
                       <PDFDownloadLink
-                        document={<JournalPdfDocument data={journal} userName={userName} />}
-                        fileName={`Journal - ${journal.month}.pdf`}
+                        document={<JournalPdfDocument data={journal} userName={isAdmin ? journal?.author : userName} />}
+                        fileName={`Journal - ${journal.month} [${isAdmin ? journal?.author : userName}].pdf`}
                       >
                         {({ blob, url, loading, error }) => (
                           <button

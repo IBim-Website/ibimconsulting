@@ -1,12 +1,5 @@
-// components/journal-steps/StepMonth.tsx
+// components/journal-steps/StepMonth.jsx
 import React from "react";
-
-interface Props {
-  userName: string; // --- ADDED ---
-  monthValue: string;
-  onMonthChange: (value: string) => void;
-  icon: React.ReactNode;
-}
 
 const months = [
   "January", "February", "March", "April", "May", "June", 
@@ -16,15 +9,15 @@ const months = [
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 4 }, (_, i) => currentYear + i);
 
-export const StepMonth = ({ userName, monthValue, onMonthChange, icon }: Props) => {
+export const StepMonth = ({ userName, monthValue, onMonthChange, icon }) => {
   const [selectedMonth, selectedYear] = monthValue.split(" ");
 
-  const handleMonthSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleMonthSelect = (e) => {
     const year = selectedYear || currentYear;
     onMonthChange(`${e.target.value} ${year}`);
   };
 
-  const handleYearSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleYearSelect = (e) => {
     const month = selectedMonth || months[0];
     onMonthChange(`${month} ${e.target.value}`);
   };
@@ -38,14 +31,12 @@ export const StepMonth = ({ userName, monthValue, onMonthChange, icon }: Props) 
         </h2>
       </div>
 
-      {/* --- MODIFIED --- */}
       <p className="text-xl text-gray-600 dark:text-gray-300">
         Let's start your reflection, <strong className="text-gray-800 dark:text-gray-100">{userName}</strong>.
         Which month are you journaling for?
       </p>
 
       <div className="flex flex-col sm:flex-row sm:items-end gap-6 max-w-lg">
-        {/* ... (rest of the component is unchanged) ... */}
         <div className="flex-1">
           <label
             htmlFor="month"
