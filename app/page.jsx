@@ -9,9 +9,9 @@ import Welcome from "@/components/Welcome";
 import JournalDashboard from "@/components/JournalDashboard";
 import MonthlyJournal from "@/components/MonthlyJournal";
 
-const NAME_KEY = "journalUserName";
-const IN_PROGRESS_KEY = "monthlyJournalData";
-const COMPLETED_KEY = "completedJournalsList";
+const NAME_KEY = "journalUserNamev2";
+const IN_PROGRESS_KEY = "monthlyJournalDatav2";
+const COMPLETED_KEY = "completedJournalsListv2";
 
 export default function Home() {
   const [userName, setUserName] = useState(null);
