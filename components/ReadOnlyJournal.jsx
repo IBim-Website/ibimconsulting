@@ -43,7 +43,7 @@ export default function ReadOnlyJournal({ data, userName }) {
         {/* --- ADDED EXPORT BUTTON --- */}
         <PDFDownloadLink
           document={<JournalPdfDocument data={data} userName={userName} />}
-          fileName={`Journal - ${data.month}.pdf`}
+          fileName={`Journal - ${data.month} [${isAdmin ? data?.author : userName}].pdf`}
         >
           {({ blob, url, loading, error }) => (
             <button
