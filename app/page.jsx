@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Brain, Activity, ClipboardCheck, ArrowRight, CheckCircle2, User } from 'lucide-react';
+import { Brain, Activity, ClipboardCheck, CheckCircle2, User, Moon, Sparkles } from 'lucide-react';
 
 export default function PersonalityTest() {
   const [formData, setFormData] = useState({});
@@ -12,7 +12,7 @@ export default function PersonalityTest() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // --- Scoring Logic ---
+  // --- Scoring Logic (Same as before) ---
   const calculateResults = (e) => {
     e.preventDefault();
 
@@ -22,7 +22,6 @@ export default function PersonalityTest() {
       groupKeys.forEach(key => {
         if (formData[key] === prefA) countA++;
       });
-      // Tie-breaker or majority rule (>= 2 out of 3)
       return countA >= Math.ceil(groupKeys.length / 2) ? prefA : prefB;
     };
 
@@ -35,7 +34,6 @@ export default function PersonalityTest() {
 
     // 2. DISC Calculation
     let discScores = { D: 0, I: 0, S: 0, C: 0 };
-    
     for (let i = 1; i <= 4; i++) {
       const most = formData[`disc_most_${i}`];
       const least = formData[`disc_least_${i}`];
@@ -52,76 +50,77 @@ export default function PersonalityTest() {
     const mbtiContent = MBTI_REPORTS[mbtiType] || MBTI_REPORTS['DEFAULT'];
     const discContent = DISC_REPORTS[discTypes] || getBalancedDiscReport(discTypes, discScores);
     
-    // Dynamic Combined Report Logic
     const combinedContent = `
-      <p class="mb-4">Your MBTI type (<strong>${mbtiType}</strong>) complements your DISC style (<strong>${discTypes.replace(/\//g, ' & ')}</strong>) by adding unique depth to your approach.</p>
-      <p class="mb-4">For instance, your <strong>${e_i === 'E' ? 'outgoing extraversion' : 'reflective introversion'}</strong> pairs with <strong>${discTypes.includes('D') || discTypes.includes('I') ? 'a dynamic, people-oriented drive' : 'a supportive, analytical focus'}</strong>, creating a balanced way of interacting with the world.</p>
-      <p class="mb-4">This combination enhances your strengths in <strong>${t_f === 'T' ? 'logical, objective decision-making' : 'empathetic, values-based leadership'}</strong>, while offering growth opportunities in <strong>${j_p === 'J' ? 'embracing spontaneity and adaptability' : 'developing more structure and planning'}</strong>.</p>
-      <p class="mb-4">Overall, you are particularly suited for environments that require <strong>${s_n === 'S' ? 'practical, hands-on execution and reliability' : 'innovative, big-picture thinking and creativity'}</strong>.</p>
-      <p>In relationships and teams, this blend allows you to <strong>${discTypes.includes('S') || discTypes.includes('C') ? 'provide steady support while leveraging your MBTI insights for deeper understanding' : 'lead with energy and persuasion, informed by your MBTI\'s strategic or intuitive edge'}</strong>.</p>
+      <p class="mb-4 text-slate-300">Your MBTI type (<strong class="text-white">${mbtiType}</strong>) complements your DISC style (<strong class="text-white">${discTypes.replace(/\//g, ' & ')}</strong>) by adding unique depth to your approach.</p>
+      <p class="mb-4 text-slate-300">For instance, your <strong class="text-emerald-400">${e_i === 'E' ? 'outgoing extraversion' : 'reflective introversion'}</strong> pairs with <strong class="text-emerald-400">${discTypes.includes('D') || discTypes.includes('I') ? 'a dynamic, people-oriented drive' : 'a supportive, analytical focus'}</strong>, creating a balanced way of interacting with the world.</p>
+      <p class="mb-4 text-slate-300">This combination enhances your strengths in <strong class="text-emerald-400">${t_f === 'T' ? 'logical, objective decision-making' : 'empathetic, values-based leadership'}</strong>, while offering growth opportunities in <strong class="text-emerald-400">${j_p === 'J' ? 'embracing spontaneity and adaptability' : 'developing more structure and planning'}</strong>.</p>
+      <p class="mb-4 text-slate-300">Overall, you are particularly suited for environments that require <strong class="text-emerald-400">${s_n === 'S' ? 'practical, hands-on execution and reliability' : 'innovative, big-picture thinking and creativity'}</strong>.</p>
     `;
 
     setResult({ mbtiType, discTypes, mbtiContent, discContent, combinedContent });
     
-    // Scroll to results
     setTimeout(() => {
       document.getElementById('results-section')?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4 font-sans text-gray-800">
+    // DARK THEME BASE: slate-950 background, slate-300 text
+    <div className="min-h-screen bg-slate-950 py-12 px-4 font-sans text-slate-300 selection:bg-emerald-500 selection:text-white">
       <div className="max-w-4xl mx-auto">
         
         {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4 flex justify-center items-center gap-3">
-            <Brain className="w-10 h-10 text-green-600" />
-            Enhanced Personality Profile
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center justify-center p-3 bg-slate-900 rounded-full mb-4 border border-slate-800 shadow-xl shadow-emerald-900/10">
+            <Brain className="w-10 h-10 text-emerald-500" />
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+            Personality <span className="text-emerald-500">Profile</span>
           </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            This improved version combines MBTI-style cognitive processing with DISC behavioral styles. 
-            Choose the options that describe you best for a comprehensive self-reflection.
+          <p className="text-slate-400 max-w-2xl mx-auto text-lg">
+            A deep dive into your cognitive processing (MBTI) and behavioral style (DISC).
           </p>
         </div>
 
-        <form onSubmit={calculateResults} className="space-y-8">
+        <form onSubmit={calculateResults} className="space-y-10">
           
           {/* --- MBTI Section --- */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="bg-blue-50 p-6 border-b border-blue-100 flex items-center gap-3">
-              <User className="w-6 h-6 text-blue-600" />
+          <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 overflow-hidden">
+            <div className="bg-slate-900/50 p-6 border-b border-slate-800 flex items-center gap-4">
+              <div className="p-2 bg-blue-500/10 rounded-lg">
+                <User className="w-6 h-6 text-blue-400" />
+              </div>
               <div>
-                <h2 className="text-xl font-bold text-blue-900">MBTI Preference Section</h2>
-                <p className="text-blue-700 text-sm">Select the statement that fits you best most of the time.</p>
+                <h2 className="text-xl font-bold text-white">MBTI Preference Section</h2>
+                <p className="text-slate-400 text-sm">Select the statement that fits you best.</p>
               </div>
             </div>
 
             <div className="p-6 space-y-6">
               {MBTI_QUESTIONS.map((q, idx) => (
-                <div key={q.id} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
-                  <strong className="block text-gray-700 mb-3">{idx + 1}. {q.title}</strong>
-                  <div className="space-y-2">
-                    <label className="flex items-start gap-3 p-3 bg-white rounded border border-gray-200 hover:border-blue-400 cursor-pointer transition-colors">
+                <div key={q.id} className="p-5 bg-slate-950/50 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors">
+                  <strong className="block text-slate-200 mb-4 text-lg">{idx + 1}. {q.title}</strong>
+                  <div className="space-y-3">
+                    <label className="group flex items-start gap-3 p-4 bg-slate-900 rounded-lg border border-slate-800 cursor-pointer transition-all hover:border-blue-500/50 hover:bg-slate-800/80">
                       <input 
                         type="radio" 
                         name={q.id} 
                         value={q.optionA.val} 
                         required 
-                        className="mt-1 w-4 h-4 text-blue-600"
+                        className="mt-1 w-4 h-4 text-blue-500 bg-slate-800 border-slate-600 focus:ring-blue-500 focus:ring-offset-slate-900"
                         onChange={() => handleChange(q.id, q.optionA.val)}
                       />
-                      <span className="text-sm text-gray-700">{q.optionA.text}</span>
+                      <span className="text-slate-300 group-hover:text-white transition-colors">{q.optionA.text}</span>
                     </label>
-                    <label className="flex items-start gap-3 p-3 bg-white rounded border border-gray-200 hover:border-blue-400 cursor-pointer transition-colors">
+                    <label className="group flex items-start gap-3 p-4 bg-slate-900 rounded-lg border border-slate-800 cursor-pointer transition-all hover:border-blue-500/50 hover:bg-slate-800/80">
                       <input 
                         type="radio" 
                         name={q.id} 
                         value={q.optionB.val} 
-                        className="mt-1 w-4 h-4 text-blue-600"
+                        className="mt-1 w-4 h-4 text-blue-500 bg-slate-800 border-slate-600 focus:ring-blue-500 focus:ring-offset-slate-900"
                         onChange={() => handleChange(q.id, q.optionB.val)}
                       />
-                      <span className="text-sm text-gray-700">{q.optionB.text}</span>
+                      <span className="text-slate-300 group-hover:text-white transition-colors">{q.optionB.text}</span>
                     </label>
                   </div>
                 </div>
@@ -130,25 +129,30 @@ export default function PersonalityTest() {
           </div>
 
           {/* --- DISC Section --- */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="bg-purple-50 p-6 border-b border-purple-100 flex items-center gap-3">
-              <Activity className="w-6 h-6 text-purple-600" />
+          <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 overflow-hidden">
+            <div className="bg-slate-900/50 p-6 border-b border-slate-800 flex items-center gap-4">
+              <div className="p-2 bg-purple-500/10 rounded-lg">
+                <Activity className="w-6 h-6 text-purple-400" />
+              </div>
               <div>
-                <h2 className="text-xl font-bold text-purple-900">DISC Behavioral Section</h2>
-                <p className="text-purple-700 text-sm">For each set, select what is MOST like you and LEAST like you.</p>
+                <h2 className="text-xl font-bold text-white">DISC Behavioral Section</h2>
+                <p className="text-slate-400 text-sm">Select what is MOST like you and LEAST like you.</p>
               </div>
             </div>
 
             <div className="p-6 grid gap-6 md:grid-cols-2">
               {DISC_SETS.map((set, idx) => (
-                <div key={set.id} className="p-5 border border-gray-200 rounded-lg bg-white shadow-sm">
-                  <h3 className="font-bold text-gray-700 mb-4">Set {idx + 1}</h3>
+                <div key={set.id} className="p-5 border border-slate-800 rounded-xl bg-slate-950/50">
+                  <h3 className="font-bold text-slate-200 mb-4 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-slate-800 text-xs flex items-center justify-center text-slate-400">{idx + 1}</span>
+                    Set {idx + 1}
+                  </h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs font-semibold text-green-600 uppercase mb-1">Most Like Me</label>
+                      <label className="block text-xs font-bold text-emerald-400 uppercase mb-2 tracking-wider">Most Like Me</label>
                       <select 
                         required 
-                        className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
                         onChange={(e) => handleChange(`disc_most_${set.id}`, e.target.value)}
                         defaultValue=""
                       >
@@ -159,10 +163,10 @@ export default function PersonalityTest() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-red-500 uppercase mb-1">Least Like Me</label>
+                      <label className="block text-xs font-bold text-rose-400 uppercase mb-2 tracking-wider">Least Like Me</label>
                       <select 
                         required 
-                        className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
                         onChange={(e) => handleChange(`disc_least_${set.id}`, e.target.value)}
                         defaultValue=""
                       >
@@ -180,62 +184,81 @@ export default function PersonalityTest() {
 
           <button 
             type="submit" 
-            className="w-full md:w-auto mx-auto block bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-lg shadow-lg transform transition hover:-translate-y-1 flex items-center gap-2 text-lg"
+            className="w-full md:w-auto mx-auto group bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-10 rounded-xl shadow-lg shadow-emerald-900/20 transform transition-all hover:-translate-y-1 flex items-center justify-center gap-3 text-lg border border-emerald-500"
           >
-            <ClipboardCheck className="w-6 h-6" />
-            Generate My Full Profile
+            <Sparkles className="w-5 h-5 text-emerald-200 group-hover:text-white" />
+            Generate My Profile
           </button>
 
         </form>
 
         {/* --- Results Section --- */}
         {result && (
-          <div id="results-section" className="mt-16 animate-fade-in-up">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-900">Your Personality Profile</h2>
-              <p className="text-gray-500">Analysis complete</p>
+          <div id="results-section" className="mt-20 space-y-8 animate-in fade-in slide-in-from-bottom-10 duration-700">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-white mb-2">Your Personality Blueprint</h2>
+              <div className="h-1 w-20 bg-emerald-500 mx-auto rounded-full"></div>
             </div>
 
-            <div className="space-y-8">
+            <div className="grid gap-8">
               {/* MBTI Result */}
-              <div className="bg-white border-l-4 border-blue-500 rounded-r-lg shadow-md p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <Brain className="w-8 h-8 text-blue-500" />
-                  <h3 className="text-2xl font-bold text-gray-800">MBTI Type: {result.mbtiType}</h3>
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+                <div className="border-l-4 border-blue-500 p-8">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="p-3 bg-blue-500/10 rounded-xl">
+                      <Brain className="w-8 h-8 text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">{result.mbtiType}</h3>
+                      <p className="text-blue-400 text-sm font-medium">Cognitive Processing</p>
+                    </div>
+                  </div>
+                  <div 
+                    className="prose prose-invert max-w-none prose-headings:text-slate-200 prose-p:text-slate-400 prose-strong:text-blue-300" 
+                    dangerouslySetInnerHTML={{ __html: result.mbtiContent }} 
+                  />
                 </div>
-                <div 
-                  className="prose prose-blue max-w-none text-gray-700" 
-                  dangerouslySetInnerHTML={{ __html: result.mbtiContent }} 
-                />
               </div>
 
               {/* DISC Result */}
-              <div className="bg-white border-l-4 border-purple-500 rounded-r-lg shadow-md p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <Activity className="w-8 h-8 text-purple-500" />
-                  <h3 className="text-2xl font-bold text-gray-800">DISC Style: {result.discTypes}</h3>
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+                <div className="border-l-4 border-purple-500 p-8">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="p-3 bg-purple-500/10 rounded-xl">
+                      <Activity className="w-8 h-8 text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">{result.discTypes}</h3>
+                      <p className="text-purple-400 text-sm font-medium">Behavioral Style</p>
+                    </div>
+                  </div>
+                  <div 
+                    className="prose prose-invert max-w-none prose-headings:text-slate-200 prose-p:text-slate-400 prose-strong:text-purple-300" 
+                    dangerouslySetInnerHTML={{ __html: result.discContent }} 
+                  />
                 </div>
-                <div 
-                  className="prose prose-purple max-w-none text-gray-700" 
-                  dangerouslySetInnerHTML={{ __html: result.discContent }} 
-                />
               </div>
 
               {/* Combined Result */}
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl shadow-lg p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <CheckCircle2 className="w-8 h-8 text-green-600" />
-                  <h3 className="text-2xl font-bold text-green-900">Combined Synthesis</h3>
+              <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-8 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-32 bg-emerald-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                
+                <div className="flex items-center gap-4 mb-6 relative z-10">
+                  <div className="p-3 bg-emerald-500/20 rounded-xl border border-emerald-500/30">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-white">Combined Synthesis</h3>
                 </div>
+                
                 <div 
-                  className="prose prose-green max-w-none text-gray-800" 
+                  className="prose prose-invert max-w-none prose-p:text-slate-300 prose-strong:text-emerald-300 relative z-10" 
                   dangerouslySetInnerHTML={{ __html: result.combinedContent }} 
                 />
               </div>
             </div>
             
-            <p className="text-center text-gray-400 text-sm mt-8 italic">
-              Note: This tool is for self-reflection and fun. It is not a substitute for official, professionally administered psychological assessments.
+            <p className="text-center text-slate-600 text-sm mt-12">
+              Note: This tool is for self-reflection and fun. It is not a substitute for official assessments.
             </p>
           </div>
         )}
@@ -245,7 +268,7 @@ export default function PersonalityTest() {
   );
 }
 
-// --- Data Constants ---
+// --- Constants (Content kept same, styling handled in logic/CSS) ---
 
 const MBTI_QUESTIONS = [
   // E vs I
@@ -272,8 +295,6 @@ const DISC_SETS = [
   { id: '3', options: [{ val: 'D', text: 'Strong-willed' }, { val: 'I', text: 'Sociable' }, { val: 'S', text: 'Kind' }, { val: 'C', text: 'Cautious' }] },
   { id: '4', options: [{ val: 'D', text: 'Pioneering' }, { val: 'I', text: 'Optimistic' }, { val: 'S', text: 'Humble' }, { val: 'C', text: 'Systematic' }] },
 ];
-
-// --- Report Data ---
 
 const MBTI_REPORTS = {
   'ESTJ': '<h3>The Executive</h3><p>Practical, organized, and assertive. You excel at managing people and processes, ensuring efficiency. You value tradition and rules.</p><p><strong>Strengths:</strong> Leadership, reliability, decisiveness.<br/><strong>Growth:</strong> Empathy and flexibility.</p>',
