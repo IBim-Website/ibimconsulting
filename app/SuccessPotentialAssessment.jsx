@@ -277,12 +277,21 @@ export default function SuccessPotentialAssessment() {
           <button
             disabled={answeredCount < 25}
             onClick={handleSubmit}
-            className={`flex items-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300
+            className={`group relative overflow-hidden flex items-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300
               ${answeredCount === 25 
-                ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-black hover:scale-105 shadow-[0_0_20px_rgba(251,191,36,0.3)]' 
-                : 'bg-zinc-900 text-zinc-600 border border-zinc-800 cursor-not-allowed'}`}
+                ? 'bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 bg-[length:200%_auto] hover:bg-[position:right_center] text-black hover:scale-105 shadow-[0_0_20px_rgba(251,191,36,0.4)]' 
+                : 'bg-gradient-to-r from-zinc-800 to-zinc-900 text-zinc-500 border border-zinc-700 cursor-not-allowed'}`}
           >
-            Calculate Results <CheckCircle className="w-6 h-6 ml-3" />
+            {/* HIGH-VISIBILITY HOVER SHINE EFFECT */}
+            {answeredCount === 25 && (
+              <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-full">
+                <div className="absolute top-0 left-[-100%] h-full w-[50%] skew-x-[-25deg] bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 ease-in-out group-hover:translate-x-[400%]" />
+              </div>
+            )}
+            
+            <span className="relative z-10 flex items-center">
+              Calculate Results <CheckCircle className="w-6 h-6 ml-3" />
+            </span>
           </button>
         </div>
       </div>
