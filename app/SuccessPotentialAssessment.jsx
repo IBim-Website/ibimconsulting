@@ -3,31 +3,37 @@
 import React, { useState } from 'react';
 import { 
   CheckCircle, Brain, Target, Activity, Compass, Star, 
-  BarChart3, ArrowRight, BookOpen, Flag
+  BarChart3, ArrowRight, BookOpen, Flag, Mail, Loader2, RefreshCcw
 } from 'lucide-react';
 import { QUESTIONS, OPTIONS, ICONS, PALETTES } from './constants';
 import { calculateResults, getProfileType, getInterpretationBand, getSubscaleText } from './utils';
 import SubscaleCard from './SubscaleCard';
 
+// Firebase Imports
+import { db } from '../lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
 export default function SuccessPotentialAssessment() {
+  // Assessment States
   const [answers, setAnswers] = useState(Array(25).fill(0));
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [resultPage, setResultPage] = useState(0); 
   const [animatingIndex, setAnimatingIndex] = useState(null);
 
+  // Lead Gen & Data States
+  const [email, setEmail] = useState('');
+  const [showEmailCapture, setShowEmailCapture] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleSelect = (index, value) => {
     const newAnswers = [...answers];
     newAnswers[index] = value;
     setAnswers(newAnswers);
 
-    // Trigger the subtle glow overlay
     setAnimatingIndex(index);
-    setTimeout(() => {
-      setAnimatingIndex(null);
-    }, 400); // Fades out smoothly
+    setTimeout(() => setAnimatingIndex(null), 400);
 
-    // Snappy auto-scroll delay
     setTimeout(() => {
       if (index < 24) {
         const nextElement = document.getElementById(`question-${index + 1}`);
@@ -39,18 +45,57 @@ export default function SuccessPotentialAssessment() {
     }, 400); 
   };
 
-  const handleSubmit = () => {
+  const startAnalysis = () => {
     setIsAnalyzing(true);
+    // Visual "Processing" delay before asking for email
     setTimeout(() => {
       setIsAnalyzing(false);
-      setIsSubmitted(true);
-      setResultPage(0);
+      setShowEmailCapture(true);
     }, 2500);
   };
 
+  const handleFinalSubmit = async (e) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setIsSaving(true);
+    const results = calculateResults(answers);
+    const profile = getProfileType(results);
+
+    try {
+      // Save data to Firestore
+      await addDoc(collection(db, "submissions"), {
+        email: email.toLowerCase().trim(),
+        answers: answers,
+        results: results,
+        profileType: profile.title,
+        submittedAt: serverTimestamp(),
+      });
+      
+      setShowEmailCapture(false);
+      setIsSubmitted(true);
+      setResultPage(0);
+    } catch (error) {
+      console.error("Error saving to Firestore:", error);
+      alert("Something went wrong saving your results. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const resetQuiz = () => {
+    setAnswers(Array(25).fill(0));
+    setIsSubmitted(false);
+    setShowEmailCapture(false);
+    setEmail('');
+    setResultPage(0);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // --- SCREEN 1: ANALYZING ANIMATION ---
   if (isAnalyzing) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-900/30 via-black to-black z-0"></div>
         <div className="relative z-10 flex flex-col items-center">
           <div className="relative flex items-center justify-center w-32 h-32 mb-10">
@@ -58,15 +103,51 @@ export default function SuccessPotentialAssessment() {
             <div className="absolute inset-2 border-l-4 border-r-4 border-yellow-400 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
             <Brain className="w-10 h-10 text-amber-200 animate-pulse" />
           </div>
-          <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-200 to-yellow-500 mb-3 text-center">
-            Analyzing Potential...
-          </h2>
+          <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-200 to-yellow-500 mb-3 text-center">Analyzing Potential...</h2>
           <p className="text-amber-500/60 text-center animate-pulse">Mapping your performance engines and psychological predictors.</p>
         </div>
       </div>
     );
   }
 
+  // --- SCREEN 2: EMAIL CAPTURE ---
+  if (showEmailCapture) {
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-900/20 via-black to-black z-0"></div>
+        <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 p-8 rounded-3xl shadow-2xl relative z-10 animate-in fade-in zoom-in duration-500">
+          <div className="bg-amber-500/10 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+            <Mail className="text-amber-500 w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold text-center mb-2 text-white">Analysis Ready</h2>
+          <p className="text-zinc-400 text-center mb-8">Enter your email to link your profile and unlock the full breakdown.</p>
+          
+          <form onSubmit={handleFinalSubmit} className="space-y-4">
+            <div className="relative">
+              <input 
+                required
+                type="email" 
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-black border border-zinc-700 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-amber-500 transition-all focus:ring-1 focus:ring-amber-500"
+              />
+            </div>
+            <button 
+              disabled={isSaving}
+              type="submit"
+              className="w-full py-4 bg-gradient-to-r from-amber-400 to-yellow-500 text-black font-bold rounded-xl flex justify-center items-center hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSaving ? <Loader2 className="animate-spin w-5 h-5" /> : "Reveal My Results"}
+            </button>
+          </form>
+          <p className="mt-6 text-[10px] text-center text-zinc-500 uppercase tracking-widest">Secure & Private Analysis</p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- SCREEN 3: RESULTS VIEW ---
   if (isSubmitted) {
     const results = calculateResults(answers);
     const band = getInterpretationBand(results.overall);
@@ -84,7 +165,6 @@ export default function SuccessPotentialAssessment() {
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-900/20 via-black to-black z-0"></div>
 
         <div className="max-w-4xl w-full space-y-6 relative z-10">
-          
           <div className="flex justify-between items-center px-2 mb-4 mt-4">
             {[0, 1, 2, 3, 4].map(step => (
               <div key={step} className={`h-1.5 rounded-full transition-all duration-500 ${resultPage >= step ? 'bg-amber-400 w-full mx-1 shadow-[0_0_8px_rgba(251,191,36,0.5)]' : 'bg-zinc-800 w-1/4 mx-1'}`} />
@@ -141,6 +221,7 @@ export default function SuccessPotentialAssessment() {
             </div>
           ) : (
             <div className="text-center space-y-4 animate-in fade-in zoom-in duration-700 relative z-10 w-full max-w-4xl mx-auto mt-2">
+              <p className="text-amber-500/50 text-xs font-mono tracking-widest mb-[-10px]">ANALYSIS FOR: {email.toUpperCase()}</p>
               <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-200 to-yellow-500">Your Overall Success Potential</h1>
               
               <div className="flex flex-col items-center justify-center p-6 sm:p-8 bg-zinc-900 rounded-3xl border border-zinc-800 shadow-[0_0_40px_rgba(251,191,36,0.1)] relative overflow-hidden">
@@ -167,30 +248,28 @@ export default function SuccessPotentialAssessment() {
 
               <div className="pt-4 pb-8">
                 <button 
-                  onClick={() => { setIsSubmitted(false); setResultPage(0); setAnswers(Array(25).fill(0)); }} 
-                  className="text-amber-500/70 hover:text-amber-400 transition text-sm font-medium"
+                  onClick={resetQuiz} 
+                  className="flex items-center mx-auto text-amber-500/70 hover:text-amber-400 transition text-sm font-medium"
                 >
-                  Retake Assessment
+                  <RefreshCcw className="w-4 h-4 mr-2" /> Retake Assessment
                 </button>
               </div>
             </div>
           )}
-
         </div>
       </div>
     );
   }
 
+  // --- SCREEN 4: MAIN QUIZ VIEW ---
   const answeredCount = answers.filter(a => a > 0).length;
   const progressPercentage = (answeredCount / 25) * 100;
 
   return (
     <div className="min-h-screen bg-black text-white font-sans relative overflow-hidden">
       
-      {/* Ambient Gold Glow */}
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-900/15 via-black to-black z-0"></div>
 
-      {/* FIXED HEADER PROGRESS BAR */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md pb-4 pt-6 px-4 sm:px-8 border-b border-zinc-800">
         <div className="max-w-3xl mx-auto">
           <div className="flex justify-between items-end mb-2">
@@ -212,7 +291,6 @@ export default function SuccessPotentialAssessment() {
         </div>
       </div>
 
-      {/* MAIN CONTENT AREA */}
       <div className="max-w-3xl mx-auto space-y-8 relative z-10 pt-32 px-4 sm:px-8 pb-8">
         {QUESTIONS.map((question, index) => {
           const isAnswered = answers[index] > 0;
@@ -226,7 +304,6 @@ export default function SuccessPotentialAssessment() {
               className={`relative bg-zinc-900/80 border border-zinc-800 p-6 sm:p-8 rounded-2xl transition-all duration-700 ease-in-out
                 ${isAnswered ? 'opacity-50 scale-95 hover:opacity-100 hover:scale-100' : 'opacity-100 shadow-xl shadow-amber-900/5'}`}
             >
-              {/* SUBTLE GLOW OVERLAY */}
               <div 
                 className={`absolute inset-0 z-20 pointer-events-none rounded-2xl transition-all duration-300 ease-out
                   ${animatingIndex === index 
@@ -269,20 +346,19 @@ export default function SuccessPotentialAssessment() {
         })}
 
         <div id="submit-section" className="pt-10 pb-20 flex flex-col items-center justify-center border-t border-zinc-800 mt-12">
-          {answeredCount < 25 ? (
+          {answeredCount < 25 && (
             <p className="text-amber-500/60 mb-4 flex items-center">
                <Star className="w-5 h-5 mr-2" /> Answer all questions to unlock your profile.
             </p>
-          ) : null}
+          )}
           <button
             disabled={answeredCount < 25}
-            onClick={handleSubmit}
+            onClick={startAnalysis}
             className={`group relative overflow-hidden flex items-center px-10 py-4 rounded-full font-bold text-lg transition-all duration-300
               ${answeredCount === 25 
                 ? 'bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-500 bg-[length:200%_auto] hover:bg-[position:right_center] text-black hover:scale-105 shadow-[0_0_20px_rgba(251,191,36,0.4)]' 
                 : 'bg-gradient-to-r from-zinc-800 to-zinc-900 text-zinc-500 border border-zinc-700 cursor-not-allowed'}`}
           >
-            {/* HIGH-VISIBILITY HOVER SHINE EFFECT */}
             {answeredCount === 25 && (
               <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-full">
                 <div className="absolute top-0 left-[-100%] h-full w-[50%] skew-x-[-25deg] bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 ease-in-out group-hover:translate-x-[400%]" />

@@ -5,7 +5,7 @@ import {
 
 export const QUESTIONS = [
   "When you feel bored or uninterested in a task, you still complete it properly before stopping.",
-  "If a long-term project stops being exciting, you keep working on it rather than jumping to something new.",
+  "When a long-term project loses its momentum, you stay committed to its completion rather than switching to a new task.",
   "You regularly do things today that only your 'future self' will benefit from (like saving, studying, or preparing).",
   "When plans fall apart at the last minute, you quickly create a new plan instead of giving up or complaining.",
   "You notice your first emotional reaction (anger, hurt, envy) but usually choose how to respond instead of reacting on impulse.",
