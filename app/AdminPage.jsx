@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { db } from '../lib/firebase';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { jsPDF } from 'jspdf';
+import { toPng } from 'html-to-image';
 import { 
   Lock, LayoutDashboard, Mail, LogOut, Eye, X, 
-  ClipboardList, Layout, Target, Activity, Compass, Brain, RefreshCw
+  ClipboardList, Layout, Target, Activity, Compass, Brain, RefreshCw, Download 
 } from 'lucide-react';
 import { getInterpretationBand, getProfileType } from './utils';
 
@@ -35,6 +37,10 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' or 'data'
+  
+  // Ref and state for PDF export
+  const modalRef = useRef(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -60,6 +66,66 @@ export default function AdminDashboard() {
       console.error("Error fetching submissions:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // PDF Export Function using html-to-image
+  // PDF Export Function using html-to-image (Centered & Dark Background)
+  const handleExportPDF = async () => {
+    const element = modalRef.current;
+    if (!element) return;
+    
+    setIsExporting(true);
+    try {
+      // 1. Capture the element
+      const dataUrl = await toPng(element, {
+        quality: 1,
+        backgroundColor: '#18181b', // Matches zinc-900
+        pixelRatio: 2 
+      });
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      // 2. Fill the entire PDF page with the matching dark background
+      // RGB values for #18181b (Tailwind's zinc-900)
+      pdf.setFillColor(24, 24, 27); 
+      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+      
+      // 3. Load the image to dynamically calculate dimensions
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise((resolve) => { img.onload = resolve; });
+      
+      // 4. Calculate dimensions to fit A4 while maintaining aspect ratio
+      const margin = 10; // 10mm padding around the edges
+      const maxImgWidth = pdfWidth - (margin * 2);
+      const maxImgHeight = pdfHeight - (margin * 2);
+      
+      const imgRatio = img.width / img.height;
+      
+      let finalImgWidth = maxImgWidth;
+      let finalImgHeight = maxImgWidth / imgRatio;
+      
+      // If the image is too tall, scale by height instead
+      if (finalImgHeight > maxImgHeight) {
+        finalImgHeight = maxImgHeight;
+        finalImgWidth = finalImgHeight * imgRatio;
+      }
+      
+      // 5. Calculate X and Y offsets to perfectly center the image
+      const xOffset = (pdfWidth - finalImgWidth) / 2;
+      const yOffset = (pdfHeight - finalImgHeight) / 2;
+      
+      // 6. Add image and save
+      pdf.addImage(dataUrl, 'PNG', xOffset, yOffset, finalImgWidth, finalImgHeight);
+      pdf.save(`Assessment_Result_${selectedSubmission.email}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -167,78 +233,94 @@ export default function AdminDashboard() {
               <X className="w-6 h-6" />
             </button>
 
-            {/* TAB NAV */}
-            <div className="flex space-x-1 bg-black p-1 rounded-xl w-fit mb-8 border border-zinc-800">
+            {/* HEADER CONTROLS */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 mt-2 sm:mt-0">
+              {/* TAB NAV */}
+              <div className="flex space-x-1 bg-black p-1 rounded-xl w-fit border border-zinc-800">
+                <button 
+                  onClick={() => setActiveTab('summary')}
+                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'summary' ? 'bg-zinc-800 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  <Layout className="w-4 h-4 mr-2" /> User View
+                </button>
+                <button 
+                  onClick={() => setActiveTab('data')}
+                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'data' ? 'bg-zinc-800 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  <ClipboardList className="w-4 h-4 mr-2" /> Raw Data
+                </button>
+              </div>
+
+              {/* EXPORT BUTTON */}
               <button 
-                onClick={() => setActiveTab('summary')}
-                className={`flex items-center px-4 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'summary' ? 'bg-zinc-800 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+                onClick={handleExportPDF}
+                disabled={isExporting}
+                className="flex items-center px-4 py-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-lg text-sm font-bold hover:bg-amber-500 hover:text-black transition disabled:opacity-50"
               >
-                <Layout className="w-4 h-4 mr-2" /> User View
-              </button>
-              <button 
-                onClick={() => setActiveTab('data')}
-                className={`flex items-center px-4 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'data' ? 'bg-zinc-800 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
-              >
-                <ClipboardList className="w-4 h-4 mr-2" /> Raw Data
+                <Download className={`w-4 h-4 mr-2 ${isExporting ? 'animate-bounce' : ''}`} /> 
+                {isExporting ? 'Exporting...' : 'Export PDF'}
               </button>
             </div>
 
-            {activeTab === 'summary' ? (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                {/* Score Header */}
-                <div className="text-center p-8 bg-black rounded-3xl border border-zinc-800 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-b from-amber-500/10 to-transparent"></div>
-                  <p className="text-zinc-500 text-xs font-mono mb-2 uppercase tracking-widest">{selectedSubmission.email}</p>
-                  <div className="text-6xl font-black text-white mb-4">{selectedSubmission.results.overall}%</div>
-                  <div className={`inline-block px-6 py-2 rounded-full text-sm font-bold border ${getInterpretationBand(selectedSubmission.results.overall).bg} ${getInterpretationBand(selectedSubmission.results.overall).color} ${getInterpretationBand(selectedSubmission.results.overall).border}`}>
-                    {getInterpretationBand(selectedSubmission.results.overall).label}
+            {/* CONTENT TO EXPORT (Wrapped in modalRef) */}
+            <div ref={modalRef} className="bg-zinc-900 p-4 -m-4 rounded-2xl">
+              {activeTab === 'summary' ? (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {/* Score Header */}
+                  <div className="text-center p-8 bg-black rounded-3xl border border-zinc-800 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-b from-amber-500/10 to-transparent"></div>
+                    <p className="text-zinc-500 text-xs font-mono mb-2 uppercase tracking-widest">{selectedSubmission.email}</p>
+                    <div className="text-6xl font-black text-white mb-4">{selectedSubmission.results.overall}%</div>
+                    <div className={`inline-block px-6 py-2 rounded-full text-sm font-bold border ${getInterpretationBand(selectedSubmission.results.overall).bg} ${getInterpretationBand(selectedSubmission.results.overall).color} ${getInterpretationBand(selectedSubmission.results.overall).border}`}>
+                      {getInterpretationBand(selectedSubmission.results.overall).label}
+                    </div>
+                  </div>
+
+                  {/* Profile Card */}
+                  <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl"></div>
+                    <h3 className="text-xs font-bold text-amber-500/80 uppercase tracking-wider mb-1">Performance Profile</h3>
+                    <h2 className="text-2xl font-black text-white mb-2">{getProfileType(selectedSubmission.results).title}</h2>
+                    <p className="text-zinc-400 leading-relaxed text-sm">{getProfileType(selectedSubmission.results).desc}</p>
+                  </div>
+
+                  {/* Category Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <AdminSubscaleCard icon={Target} color="from-orange-500 to-amber-500" title="Follow-Through" score={selectedSubmission.results.grit} description="Ability to stick with tasks and long-term goals." />
+                    <AdminSubscaleCard icon={Activity} color="from-amber-400 to-yellow-500" title="Impulse Control" score={selectedSubmission.results.selfControl} description="Ability to say no to temptations and maintain standards." />
+                    <AdminSubscaleCard icon={Compass} color="from-cyan-400 to-blue-500" title="Direction & Structure" score={selectedSubmission.results.planning} description="Ability to plan ahead and link actions to future goals." />
+                    <AdminSubscaleCard icon={Brain} color="from-emerald-400 to-teal-500" title="Adaptability & Learning" score={selectedSubmission.results.adaptability} description="Ability to handle feedback and adjust course." />
                   </div>
                 </div>
-
-                {/* Profile Card */}
-                <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl"></div>
-                  <h3 className="text-xs font-bold text-amber-500/80 uppercase tracking-wider mb-1">Performance Profile</h3>
-                  <h2 className="text-2xl font-black text-white mb-2">{getProfileType(selectedSubmission.results).title}</h2>
-                  <p className="text-zinc-400 leading-relaxed text-sm">{getProfileType(selectedSubmission.results).desc}</p>
-                </div>
-
-                {/* Category Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <AdminSubscaleCard icon={Target} color="from-orange-500 to-amber-500" title="Follow-Through" score={selectedSubmission.results.grit} description="Ability to stick with tasks and long-term goals." />
-                  <AdminSubscaleCard icon={Activity} color="from-amber-400 to-yellow-500" title="Impulse Control" score={selectedSubmission.results.selfControl} description="Ability to say no to temptations and maintain standards." />
-                  <AdminSubscaleCard icon={Compass} color="from-cyan-400 to-blue-500" title="Direction & Structure" score={selectedSubmission.results.planning} description="Ability to plan ahead and link actions to future goals." />
-                  <AdminSubscaleCard icon={Brain} color="from-emerald-400 to-teal-500" title="Adaptability & Learning" score={selectedSubmission.results.adaptability} description="Ability to handle feedback and adjust course." />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {Object.entries(selectedSubmission.results).map(([key, val]) => (
-                    key !== 'overall' && (
-                      <div key={key} className="bg-black p-4 rounded-xl border border-zinc-800">
-                        <p className="text-[10px] text-zinc-500 uppercase font-bold">{key.replace(/([A-Z])/g, ' $1')}</p>
-                        <p className="text-xl font-bold text-amber-500">{val}%</p>
-                      </div>
-                    )
-                  ))}
-                </div>
-
-                <div className="bg-black p-6 rounded-2xl border border-zinc-800">
-                  <h3 className="text-sm font-bold mb-4 text-zinc-300 flex items-center">
-                    <ClipboardList className="w-4 h-4 mr-2 text-amber-500" /> Answer Key (Q1-Q25)
-                  </h3>
-                  <div className="grid grid-cols-5 sm:grid-cols-8 gap-2">
-                    {selectedSubmission.answers.map((val, idx) => (
-                      <div key={idx} className="bg-zinc-900 border border-zinc-800 rounded-lg py-2 flex flex-col items-center">
-                        <span className="text-[9px] text-zinc-500">Q{idx+1}</span>
-                        <span className="text-sm font-bold text-white">{val}</span>
-                      </div>
+              ) : (
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {Object.entries(selectedSubmission.results).map(([key, val]) => (
+                      key !== 'overall' && (
+                        <div key={key} className="bg-black p-4 rounded-xl border border-zinc-800">
+                          <p className="text-[10px] text-zinc-500 uppercase font-bold">{key.replace(/([A-Z])/g, ' $1')}</p>
+                          <p className="text-xl font-bold text-amber-500">{val}%</p>
+                        </div>
+                      )
                     ))}
                   </div>
+
+                  <div className="bg-black p-6 rounded-2xl border border-zinc-800">
+                    <h3 className="text-sm font-bold mb-4 text-zinc-300 flex items-center">
+                      <ClipboardList className="w-4 h-4 mr-2 text-amber-500" /> Answer Key (Q1-Q25)
+                    </h3>
+                    <div className="grid grid-cols-5 sm:grid-cols-8 gap-2">
+                      {selectedSubmission.answers.map((val, idx) => (
+                        <div key={idx} className="bg-zinc-900 border border-zinc-800 rounded-lg py-2 flex flex-col items-center">
+                          <span className="text-[9px] text-zinc-500">Q{idx+1}</span>
+                          <span className="text-sm font-bold text-white">{val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             <button 
               onClick={() => setSelectedSubmission(null)}
