@@ -3,15 +3,19 @@
 import React, { useState } from 'react';
 import { 
   CheckCircle, Brain, Target, Activity, Compass, Star, 
-  BarChart3, ArrowRight, BookOpen, Flag, Mail, Loader2, RefreshCcw
+  BarChart3, ArrowRight, BookOpen, Flag, Mail, Loader2, RefreshCcw, Download, Sparkles
 } from 'lucide-react';
 import { QUESTIONS, OPTIONS, ICONS, PALETTES } from './constants';
 import { calculateResults, getProfileType, getInterpretationBand, getSubscaleText } from './utils';
 import SubscaleCard from './SubscaleCard';
 
+// PDF Imports
+import { pdf } from '@react-pdf/renderer';
+import AssessmentPdfReport from './AssessmentPdfReport'; // Ensure this path matches where you saved the PDF component
+
 // Firebase Imports
 import { db } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function SuccessPotentialAssessment() {
   // Assessment States
@@ -25,6 +29,10 @@ export default function SuccessPotentialAssessment() {
   const [email, setEmail] = useState('');
   const [showEmailCapture, setShowEmailCapture] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // New AI & PDF States
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [fullReportData, setFullReportData] = useState(null);
 
   const handleSelect = (index, value) => {
     const newAnswers = [...answers];
@@ -47,7 +55,6 @@ export default function SuccessPotentialAssessment() {
 
   const startAnalysis = () => {
     setIsAnalyzing(true);
-    // Visual "Processing" delay before asking for email
     setTimeout(() => {
       setIsAnalyzing(false);
       setShowEmailCapture(true);
@@ -61,25 +68,64 @@ export default function SuccessPotentialAssessment() {
     setIsSaving(true);
     const results = calculateResults(answers);
     const profile = getProfileType(results);
+    const payload = { email: email.toLowerCase().trim(), answers, results, profileType: profile.title };
 
     try {
-      // Save data to Firestore
-      await addDoc(collection(db, "submissions"), {
-        email: email.toLowerCase().trim(),
-        answers: answers,
-        results: results,
-        profileType: profile.title,
+      // 1. Save initial data to Firestore
+      const docRef = await addDoc(collection(db, "submissions"), {
+        ...payload,
         submittedAt: serverTimestamp(),
       });
       
+      // 2. Immediately show results UI to user
       setShowEmailCapture(false);
       setIsSubmitted(true);
       setResultPage(0);
-    } catch (error) {
-      console.error("Error saving to Firestore:", error);
-      alert("Something went wrong saving your results. Please try again.");
-    } finally {
       setIsSaving(false);
+      
+      // 3. Start AI Report Generation in the background
+      setIsGeneratingReport(true);
+      
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ strategyData: payload }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.insights) {
+        // 4. Attach the AI report to the Firestore document for the Admin
+        await updateDoc(doc(db, "submissions", docRef.id), { aiInsights: data.insights });
+        
+        // 5. Save the complete data locally so the user can download it
+        setFullReportData({ ...payload, aiInsights: data.insights });
+      }
+
+    } catch (error) {
+      console.error("Error saving or generating report:", error);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  // Function to compile and download the PDF
+  const handleDownloadPDF = async () => {
+    if (!fullReportData) return;
+    
+    try {
+      const blob = await pdf(<AssessmentPdfReport submission={fullReportData} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Success_Profile_${email}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to compile PDF. Please try again.");
     }
   };
 
@@ -89,6 +135,7 @@ export default function SuccessPotentialAssessment() {
     setShowEmailCapture(false);
     setEmail('');
     setResultPage(0);
+    setFullReportData(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -164,7 +211,7 @@ export default function SuccessPotentialAssessment() {
       <div className="min-h-screen bg-black text-white p-4 font-sans flex flex-col items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-900/20 via-black to-black z-0"></div>
 
-        <div className="max-w-4xl w-full space-y-6 relative z-10">
+        <div className="max-w-4xl w-full space-y-6 relative z-10 py-10">
           <div className="flex justify-between items-center px-2 mb-4 mt-4">
             {[0, 1, 2, 3, 4].map(step => (
               <div key={step} className={`h-1.5 rounded-full transition-all duration-500 ${resultPage >= step ? 'bg-amber-400 w-full mx-1 shadow-[0_0_8px_rgba(251,191,36,0.5)]' : 'bg-zinc-800 w-1/4 mx-1'}`} />
@@ -244,6 +291,31 @@ export default function SuccessPotentialAssessment() {
                 <SubscaleCard icon={Activity} color="from-amber-400 to-yellow-500" title="Impulse Control" score={results.selfControl} description="Ability to say no to temptations and maintain daily standards." />
                 <SubscaleCard icon={Compass} color="from-cyan-400 to-blue-500" title="Direction & Structure" score={results.planning} description="Ability to plan ahead and link today's actions to future goals." />
                 <SubscaleCard icon={Brain} color="from-emerald-400 to-teal-500" title="Adaptability & Learning" score={results.adaptability} description="Ability to handle feedback and adjust course." />
+              </div>
+
+              {/* --- NEW PDF DOWNLOAD SECTION --- */}
+              <div className="mt-8 bg-zinc-950 border border-zinc-800 p-6 rounded-3xl relative overflow-hidden text-left">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl"></div>
+                <h3 className="text-lg font-bold text-white mb-2 flex items-center">
+                  <Sparkles className="w-5 h-5 text-amber-500 mr-2" /> 
+                  Premium Research Analysis
+                </h3>
+                <p className="text-zinc-400 text-sm mb-6 relative z-10">
+                  Get a comprehensive, multi-page deep dive into your psychological profile, featuring academic citations and strategic action plans.
+                </p>
+
+                {isGeneratingReport ? (
+                  <button disabled className="w-full py-4 bg-zinc-800 text-amber-500 font-bold rounded-xl flex justify-center items-center transition cursor-not-allowed border border-amber-500/20 relative z-10">
+                    <Loader2 className="animate-spin w-5 h-5 mr-2" /> Generating your full analysis report...
+                  </button>
+                ) : (
+                  <button 
+                    onClick={handleDownloadPDF}
+                    className="w-full py-4 bg-gradient-to-r from-amber-400 to-yellow-500 text-black font-bold rounded-xl flex justify-center items-center hover:scale-[1.02] transition shadow-[0_0_20px_rgba(251,191,36,0.3)] relative z-10"
+                  >
+                    <Download className="w-5 h-5 mr-2" /> Download Full Analysis Report
+                  </button>
+                )}
               </div>
 
               <div className="pt-4 pb-8">

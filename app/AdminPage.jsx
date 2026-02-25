@@ -2,16 +2,18 @@
 
 import React, { useState, useRef } from 'react';
 import { db } from '../lib/firebase';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { jsPDF } from 'jspdf';
-import { toPng } from 'html-to-image';
+import ReactMarkdown from 'react-markdown';
+import { pdf } from '@react-pdf/renderer';
+import AssessmentPdfReport from './AssessmentPdfReport'; // Adjust path
 import { 
   Lock, LayoutDashboard, Mail, LogOut, Eye, X, 
-  ClipboardList, Layout, Target, Activity, Compass, Brain, RefreshCw, Download 
+  ClipboardList, Layout, Target, Activity, Compass, 
+  Brain, RefreshCw, Download, Sparkles 
 } from 'lucide-react';
 import { getInterpretationBand, getProfileType } from './utils';
 
-// Helper Component for the 4 Categories in the Modal
 function AdminSubscaleCard({ icon: Icon, color, title, score, description }) {
   return (
     <div className="bg-zinc-800/50 border border-zinc-700/50 p-4 rounded-2xl flex items-start space-x-4">
@@ -36,11 +38,17 @@ export default function AdminDashboard() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
-  const [activeTab, setActiveTab] = useState('summary'); // 'summary' or 'data'
+
+  // Add this right under const modalRef = useRef(null);
+  const printRef = useRef(null);
   
-  // Ref and state for PDF export
+  // Tabs: 'summary', 'data', 'ai'
+  const [activeTab, setActiveTab] = useState('summary'); 
+  
+  // AI & Export States
   const modalRef = useRef(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -69,58 +77,69 @@ export default function AdminDashboard() {
     }
   };
 
-  // PDF Export Function using html-to-image
-  // PDF Export Function using html-to-image (Centered & Dark Background)
-  const handleExportPDF = async () => {
-    const element = modalRef.current;
-    if (!element) return;
-    
-    setIsExporting(true);
+  // --- NEW: GENERATE AI INSIGHTS ---
+  const handleGenerateInsights = async () => {
+    if (!selectedSubmission) return;
+    setIsGenerating(true);
+
+    const payload = {
+      email: selectedSubmission.email,
+      answers: selectedSubmission.answers,
+      results: selectedSubmission.results,
+      profileType: selectedSubmission.profileType
+    };
+
     try {
-      // 1. Capture the element
-      const dataUrl = await toPng(element, {
-        quality: 1,
-        backgroundColor: '#18181b', // Matches zinc-900
-        pixelRatio: 2 
+      // 1. Fetch from API
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ strategyData: payload }),
       });
       
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const data = await response.json();
       
-      // 2. Fill the entire PDF page with the matching dark background
-      // RGB values for #18181b (Tailwind's zinc-900)
-      pdf.setFillColor(24, 24, 27); 
-      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+      if (data.error) throw new Error(data.error);
+
+      // 2. Update Firestore document with new insights
+      const docRef = doc(db, "submissions", selectedSubmission.id);
+      await updateDoc(docRef, { aiInsights: data.insights });
+
+      // 3. Update local state to show UI immediately
+      const updatedSubmission = { ...selectedSubmission, aiInsights: data.insights };
+      setSelectedSubmission(updatedSubmission);
+      setSubmissions(submissions.map(sub => sub.id === selectedSubmission.id ? updatedSubmission : sub));
       
-      // 3. Load the image to dynamically calculate dimensions
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise((resolve) => { img.onload = resolve; });
+      // Force tab switch to see the results
+      setActiveTab('ai');
+
+    } catch (error) {
+      console.error("Error generating insights:", error);
+      alert("Failed to generate AI insights.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!selectedSubmission) return;
+    setIsExporting(true);
+
+    try {
+      // 1. Compile the React-PDF document into a Blob
+      const blob = await pdf(<AssessmentPdfReport submission={selectedSubmission} />).toBlob();
       
-      // 4. Calculate dimensions to fit A4 while maintaining aspect ratio
-      const margin = 10; // 10mm padding around the edges
-      const maxImgWidth = pdfWidth - (margin * 2);
-      const maxImgHeight = pdfHeight - (margin * 2);
+      // 2. Create a temporary URL and trigger the browser download
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Analysis_${selectedSubmission.email}.pdf`;
+      document.body.appendChild(link);
+      link.click();
       
-      const imgRatio = img.width / img.height;
-      
-      let finalImgWidth = maxImgWidth;
-      let finalImgHeight = maxImgWidth / imgRatio;
-      
-      // If the image is too tall, scale by height instead
-      if (finalImgHeight > maxImgHeight) {
-        finalImgHeight = maxImgHeight;
-        finalImgWidth = finalImgHeight * imgRatio;
-      }
-      
-      // 5. Calculate X and Y offsets to perfectly center the image
-      const xOffset = (pdfWidth - finalImgWidth) / 2;
-      const yOffset = (pdfHeight - finalImgHeight) / 2;
-      
-      // 6. Add image and save
-      pdf.addImage(dataUrl, 'PNG', xOffset, yOffset, finalImgWidth, finalImgHeight);
-      pdf.save(`Assessment_Result_${selectedSubmission.email}.pdf`);
+      // 3. Clean up
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');
@@ -189,28 +208,26 @@ export default function AdminDashboard() {
                   <th className="p-4 text-zinc-400 font-bold text-sm uppercase tracking-wider">Email</th>
                   <th className="p-4 text-zinc-400 font-bold text-sm uppercase tracking-wider">Profile</th>
                   <th className="p-4 text-zinc-400 font-bold text-sm uppercase tracking-wider">Score</th>
-                  <th className="p-4 text-zinc-400 font-bold text-sm uppercase tracking-wider">Date</th>
                   <th className="p-4 text-zinc-400 font-bold text-sm uppercase tracking-wider text-right">Details</th>
                 </tr>
               </thead>
               <tbody>
                 {submissions.length === 0 && !loading ? (
-                  <tr><td colSpan="5" className="p-10 text-center text-zinc-500">No submissions found.</td></tr>
+                  <tr><td colSpan="4" className="p-10 text-center text-zinc-500">No submissions found.</td></tr>
                 ) : (
                   submissions.map((item) => (
                     <tr key={item.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
                       <td className="p-4 font-medium">{item.email}</td>
                       <td className="p-4 text-amber-500 text-sm font-bold uppercase">{item.profileType}</td>
                       <td className="p-4 font-mono font-bold text-white text-lg">{item.results?.overall}%</td>
-                      <td className="p-4 text-zinc-400 text-sm">
-                        {item.submittedAt?.toDate().toLocaleDateString()}
-                      </td>
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right flex justify-end gap-2">
+                        {/* Indicate if AI Report exists in the table */}
+                        {item.aiInsights && <Sparkles className="w-4 h-4 text-emerald-500 mt-2 mr-2" />}
                         <button 
                           onClick={() => { setSelectedSubmission(item); setActiveTab('summary'); }}
                           className="px-4 py-2 bg-amber-500 text-black rounded-lg text-xs font-bold hover:bg-amber-400 transition shadow-md"
                         >
-                          <Eye className="w-3 h-3 mr-2 inline" /> Show Result
+                          <Eye className="w-3 h-3 mr-2 inline" /> View
                         </button>
                       </td>
                     </tr>
@@ -225,7 +242,7 @@ export default function AdminDashboard() {
       {/* --- RESULT DETAILS MODAL --- */}
       {selectedSubmission && (
         <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-3xl max-h-[95vh] overflow-y-auto rounded-3xl p-6 sm:p-10 shadow-2xl relative">
+          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-4xl max-h-[95vh] overflow-y-auto rounded-3xl p-6 sm:p-10 shadow-2xl relative">
             <button 
               onClick={() => setSelectedSubmission(null)}
               className="absolute top-6 right-6 p-2 text-zinc-500 hover:text-white transition"
@@ -235,38 +252,62 @@ export default function AdminDashboard() {
 
             {/* HEADER CONTROLS */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 mt-2 sm:mt-0">
+              
               {/* TAB NAV */}
-              <div className="flex space-x-1 bg-black p-1 rounded-xl w-fit border border-zinc-800">
+              <div className="flex space-x-1 bg-black p-1 rounded-xl w-fit border border-zinc-800 overflow-x-auto">
                 <button 
                   onClick={() => setActiveTab('summary')}
-                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'summary' ? 'bg-zinc-800 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`flex items-center whitespace-nowrap px-4 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'summary' ? 'bg-zinc-800 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
                 >
-                  <Layout className="w-4 h-4 mr-2" /> User View
+                  <Layout className="w-4 h-4 mr-2" /> Summary
                 </button>
                 <button 
                   onClick={() => setActiveTab('data')}
-                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'data' ? 'bg-zinc-800 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`flex items-center whitespace-nowrap px-4 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'data' ? 'bg-zinc-800 text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
                 >
                   <ClipboardList className="w-4 h-4 mr-2" /> Raw Data
                 </button>
+                <button 
+                  onClick={() => setActiveTab('ai')}
+                  className={`flex items-center whitespace-nowrap px-4 py-2 rounded-lg text-sm font-bold transition ${activeTab === 'ai' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  <Brain className="w-4 h-4 mr-2" /> AI Report
+                </button>
               </div>
 
-              {/* EXPORT BUTTON */}
-              <button 
-                onClick={handleExportPDF}
-                disabled={isExporting}
-                className="flex items-center px-4 py-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-lg text-sm font-bold hover:bg-amber-500 hover:text-black transition disabled:opacity-50"
-              >
-                <Download className={`w-4 h-4 mr-2 ${isExporting ? 'animate-bounce' : ''}`} /> 
-                {isExporting ? 'Exporting...' : 'Export PDF'}
-              </button>
+              {/* ACTION BUTTONS */}
+<div className="flex items-center gap-2">
+  <button 
+    onClick={handleGenerateInsights}
+    disabled={isGenerating}
+    className={`flex items-center px-4 py-2 rounded-lg text-sm font-bold transition disabled:opacity-50 
+      ${selectedSubmission.aiInsights 
+        ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white border border-zinc-700' 
+        : 'bg-emerald-500 text-white hover:bg-emerald-400'}`}
+  >
+    <RefreshCw className={`w-4 h-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} /> 
+    {isGenerating 
+      ? 'Analyzing...' 
+      : (selectedSubmission.aiInsights ? 'Get New Report' : 'Generate AI Insight')}
+  </button>
+  
+  <button 
+    onClick={handleExportPDF}
+    disabled={isExporting || isGenerating}
+    className="flex items-center px-4 py-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-lg text-sm font-bold hover:bg-amber-500 hover:text-black transition disabled:opacity-50"
+  >
+    <Download className={`w-4 h-4 mr-2 ${isExporting ? 'animate-bounce' : ''}`} /> 
+    Export PDF
+  </button>
+</div>
             </div>
 
             {/* CONTENT TO EXPORT (Wrapped in modalRef) */}
             <div ref={modalRef} className="bg-zinc-900 p-4 -m-4 rounded-2xl">
-              {activeTab === 'summary' ? (
+              
+              {/* TAB 1: SUMMARY */}
+              {activeTab === 'summary' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  {/* Score Header */}
                   <div className="text-center p-8 bg-black rounded-3xl border border-zinc-800 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-b from-amber-500/10 to-transparent"></div>
                     <p className="text-zinc-500 text-xs font-mono mb-2 uppercase tracking-widest">{selectedSubmission.email}</p>
@@ -276,23 +317,23 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Profile Card */}
                   <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl"></div>
                     <h3 className="text-xs font-bold text-amber-500/80 uppercase tracking-wider mb-1">Performance Profile</h3>
                     <h2 className="text-2xl font-black text-white mb-2">{getProfileType(selectedSubmission.results).title}</h2>
                     <p className="text-zinc-400 leading-relaxed text-sm">{getProfileType(selectedSubmission.results).desc}</p>
                   </div>
 
-                  {/* Category Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <AdminSubscaleCard icon={Target} color="from-orange-500 to-amber-500" title="Follow-Through" score={selectedSubmission.results.grit} description="Ability to stick with tasks and long-term goals." />
-                    <AdminSubscaleCard icon={Activity} color="from-amber-400 to-yellow-500" title="Impulse Control" score={selectedSubmission.results.selfControl} description="Ability to say no to temptations and maintain standards." />
+                    <AdminSubscaleCard icon={Activity} color="from-amber-400 to-yellow-500" title="Impulse Control" score={selectedSubmission.results.selfControl} description="Ability to say no to temptations." />
                     <AdminSubscaleCard icon={Compass} color="from-cyan-400 to-blue-500" title="Direction & Structure" score={selectedSubmission.results.planning} description="Ability to plan ahead and link actions to future goals." />
                     <AdminSubscaleCard icon={Brain} color="from-emerald-400 to-teal-500" title="Adaptability & Learning" score={selectedSubmission.results.adaptability} description="Ability to handle feedback and adjust course." />
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {/* TAB 2: RAW DATA */}
+              {activeTab === 'data' && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     {Object.entries(selectedSubmission.results).map(([key, val]) => (
@@ -320,6 +361,75 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               )}
+
+              {/* TAB 3: AI REPORT */}
+{/* TAB 3: AI REPORT */}
+{activeTab === 'ai' && (
+  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+    {selectedSubmission.aiInsights ? (
+      <div className="bg-zinc-950 p-8 rounded-3xl border border-emerald-500/30 relative overflow-hidden shadow-[0_0_30px_rgba(16,185,129,0.05)]">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
+        <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
+          <Sparkles className="w-6 h-6 text-emerald-400 mr-3" /> 
+          Full Report
+        </h3>
+        
+        {/* --- REACT MARKDOWN INTEGRATION --- */}
+        <div className="relative z-10 pb-8">
+          <ReactMarkdown
+            components={{
+              // Added h3 styling because the AI prompt was instructed to use ### for sections
+              h3: ({node, ...props}) => <h3 className="text-xl font-bold text-white mt-8 mb-4 border-b border-zinc-800 pb-2" {...props} />,
+              // Changed text-black to text-emerald-400 to pop on the dark theme
+              strong: ({node, ...props}) => <strong className="font-bold text-yellow-400" {...props} />,
+              p: ({node, ...props}) => <p className="mb-4 text-zinc-300 leading-relaxed text-sm sm:text-base" {...props} />,
+              ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-4 space-y-2 text-zinc-300" {...props} />,
+              ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-4 space-y-2 text-zinc-300" {...props} />,
+              li: ({node, ...props}) => <li className="pl-1" {...props} />,
+              a: ({node, ...props}) => (
+                <a 
+                  className="text-yellow-400 underline font-semibold hover:text-yellow-300 transition-colors" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  {...props} 
+                />
+              ),
+            }}
+          >
+            {selectedSubmission.aiInsights}
+          </ReactMarkdown>
+        </div>
+
+        {/* Bottom Regenerate Button */}
+        <div className="relative z-10 mt-4 pt-6 border-t border-emerald-500/20 flex justify-end">
+           <button 
+            onClick={handleGenerateInsights}
+            disabled={isGenerating}
+            className="flex items-center px-4 py-2 bg-zinc-900 text-zinc-400 hover:text-emerald-400 rounded-lg text-sm font-medium hover:bg-zinc-800 transition disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} /> 
+            {isGenerating ? 'Generating New Report...' : 'Re-run AI Analysis'}
+          </button>
+        </div>
+      </div>
+    ) : (
+      // ... (Empty State UI remains exactly the same)
+      <div className="text-center py-16 bg-black border border-zinc-800 rounded-3xl">
+        <Brain className="w-16 h-16 mx-auto text-zinc-700 mb-4" />
+        <h3 className="text-xl font-bold text-white mb-2">No Report Generated</h3>
+        <p className="text-zinc-500 mb-6 text-sm max-w-sm mx-auto">Click the button above to generate a highly detailed, research-backed analysis of this profile.</p>
+        <button 
+          onClick={handleGenerateInsights}
+          disabled={isGenerating}
+          className="px-6 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-400 transition flex items-center mx-auto disabled:opacity-50"
+        >
+          {isGenerating ? <><RefreshCw className="animate-spin w-4 h-4 mr-2" /> Generating...</> : 'Generate Insights Now'}
+        </button>
+      </div>
+    )}
+  </div>
+)}
+
             </div>
 
             <button 
@@ -328,6 +438,91 @@ export default function AdminDashboard() {
             >
               Close Detailed View
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          HIDDEN PRINT CONTAINER (FOR MULTI-PAGE PDF EXPORT ONLY)
+          ========================================================= */}
+      {selectedSubmission && (
+        <div className="absolute top-[-20000px] left-[-20000px]">
+          {/* w-[800px] matches A4 width perfectly */}
+          <div ref={printRef} className="w-[800px] bg-zinc-950 text-white p-12">
+            
+            {/* === PAGE 1: SUMMARY & DATA === */}
+            {/* The html-to-pdf pagebreak engine will read this class and force a new page after this block */}
+            <div className="html2pdf__page-break flex flex-col mb-12">
+              
+              <div className="border-b border-zinc-800 pb-6 mb-8 flex justify-between items-end">
+                <div>
+                  <h1 className="text-4xl font-black mb-1">Performance Analysis</h1>
+                  <p className="text-emerald-500 font-mono text-lg">{selectedSubmission.email}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-5xl font-black">{selectedSubmission.results.overall}%</div>
+                  <div className="text-sm font-bold text-zinc-500 uppercase tracking-widest">Overall Score</div>
+                </div>
+              </div>
+
+              <div className="bg-black p-6 rounded-xl border border-zinc-800 mb-8 break-inside-avoid">
+                <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-2">Primary Archetype</h3>
+                <h2 className="text-2xl font-black text-emerald-400 mb-2">{getProfileType(selectedSubmission.results).title}</h2>
+                <p className="text-zinc-300 leading-relaxed">{getProfileType(selectedSubmission.results).desc}</p>
+              </div>
+
+              <h3 className="text-lg font-bold border-b border-zinc-800 pb-2 mb-4">Engine Breakdown</h3>
+              <div className="grid grid-cols-2 gap-4 mb-10 break-inside-avoid">
+                {Object.entries(selectedSubmission.results).map(([key, val]) => {
+                  if (key === 'overall') return null;
+                  return (
+                    <div key={key} className="border border-zinc-800 p-4 rounded-lg flex justify-between items-center bg-black">
+                      <span className="font-bold text-zinc-300 capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
+                      <span className="font-mono text-xl font-bold text-emerald-400">{val}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <h3 className="text-lg font-bold border-b border-zinc-800 pb-2 mb-4">Raw Assessment Data</h3>
+              <div className="grid grid-cols-5 gap-3 break-inside-avoid">
+                {selectedSubmission.answers.map((val, idx) => (
+                  <div key={idx} className="border border-zinc-800 p-3 text-center rounded bg-black">
+                    <div className="text-[10px] text-zinc-500 mb-1">Q{idx+1}</div>
+                    <div className="font-bold text-lg text-white">{val}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* === PAGE 2+: AI RESEARCH ANALYSIS === */}
+            <div>
+              <h2 className="text-3xl font-black border-b border-zinc-800 pb-4 mb-8">AI Strategy & Research Analysis</h2>
+              
+              {selectedSubmission.aiInsights ? (
+                <div className="prose prose-invert max-w-none">
+                  <ReactMarkdown
+                    components={{
+                      // Added break-inside-avoid so headings stick to their paragraphs
+                      h3: ({node, ...props}) => <h3 className="text-2xl font-bold text-white mt-10 mb-4 border-b border-zinc-800 pb-2 break-after-avoid" {...props} />,
+                      // Put the emerald green back!
+                      strong: ({node, ...props}) => <strong className="font-bold text-emerald-400" {...props} />,
+                      // Added break-inside-avoid so paragraphs don't get chopped in half
+                      p: ({node, ...props}) => <p className="mb-6 text-zinc-300 leading-relaxed text-lg break-inside-avoid" {...props} />,
+                      ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-6 space-y-3 text-zinc-300 text-lg break-inside-avoid" {...props} />,
+                      ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-6 space-y-3 text-zinc-300 text-lg break-inside-avoid" {...props} />,
+                      li: ({node, ...props}) => <li className="pl-2" {...props} />,
+                      a: ({node, ...props}) => <a className="text-blue-400 underline" {...props} />,
+                    }}
+                  >
+                    {selectedSubmission.aiInsights}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-zinc-500 italic text-lg">No AI Strategy Report has been generated for this profile yet.</p>
+              )}
+            </div>
+
           </div>
         </div>
       )}
