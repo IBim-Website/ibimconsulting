@@ -16,6 +16,7 @@ import AssessmentPdfReport from './AssessmentPdfReport'; // Ensure this path mat
 // Firebase Imports
 import { db } from '../lib/firebase';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
 export default function SuccessPotentialAssessment() {
   // Assessment States
@@ -24,6 +25,7 @@ export default function SuccessPotentialAssessment() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [resultPage, setResultPage] = useState(0); 
   const [animatingIndex, setAnimatingIndex] = useState(null);
+  const router = useRouter()
 
   // Lead Gen & Data States
   const [email, setEmail] = useState('');
@@ -82,9 +84,10 @@ export default function SuccessPotentialAssessment() {
       setIsSubmitted(true);
       setResultPage(0);
       setIsSaving(false);
+      return;
       
       // 3. Start AI Report Generation in the background
-      setIsGeneratingReport(true);
+      // setIsGeneratingReport(true);
       
       const response = await fetch("/api/reports", {
         method: "POST",
@@ -111,8 +114,9 @@ export default function SuccessPotentialAssessment() {
 
   // Function to compile and download the PDF
   const handleDownloadPDF = async () => {
+    router.push("https://buy.stripe.com/test_8x2eVf3GTdz8bbz3rJ8EM00")
     if (!fullReportData) return;
-    
+
     try {
       const blob = await pdf(<AssessmentPdfReport submission={fullReportData} />).toBlob();
       const url = URL.createObjectURL(blob);
