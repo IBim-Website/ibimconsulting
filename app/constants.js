@@ -17,7 +17,7 @@ export const QUESTIONS = [
   "You rarely abandon a goal halfway; you either finish it or consciously decide to replace it with a better goal.",
   "On days when you do not 'feel like it,' you still do at least some of the important work you planned.",
   "You find it easy to say no to temptations (food, entertainment, distractions) when they interfere with something important.",
-  "When other people are wasting time or procrastinating, you do not let that become your excuse to do the same.",
+  "When other people are wasting time or procrastinating, do you let them become your excuse to do the same?",
   "You deliberately seek out tasks or roles that stretch you beyond what feels comfortable or familiar.",
   "You regularly invest time or money into your own learning or skill development without being required to.",
   "When things go better than expected, you look for what you did right so you can repeat it deliberately.",
