@@ -245,7 +245,7 @@ export default function AssessmentPdfReport({ submission }) {
 
         {/* --- BRANDING & CALL TO ACTION FOOTER --- */}
         <View style={styles.footer} wrap={false}>
-          <Image src="/logo.png" style={styles.footerLogo} />
+          <Image src="https://success.martialpeter.com/logo.png" style={styles.footerLogo} />
           
           <View style={styles.footerTextContainer}>
             <Text style={styles.footerTitle}>Success Potential Assessment</Text>
