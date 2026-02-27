@@ -10,9 +10,18 @@ import AssessmentPdfReport from './AssessmentPdfReport'; // Adjust path
 import { 
   Lock, LayoutDashboard, Mail, LogOut, Eye, X, 
   ClipboardList, Layout, Target, Activity, Compass, 
-  Brain, RefreshCw, Download, Sparkles 
+  Brain, RefreshCw, Download, Sparkles, CheckCircle2 
 } from 'lucide-react';
 import { getInterpretationBand, getProfileType } from './utils';
+
+const PaidBadge = () => {
+  return (
+    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 shadow-sm">
+      <CheckCircle2 size={14} strokeWidth={2.5} />
+      <span className="text-xs font-bold uppercase tracking-wide">Paid</span>
+    </div>
+  );
+};
 
 function AdminSubscaleCard({ icon: Icon, color, title, score, description }) {
   return (
@@ -277,6 +286,7 @@ export default function AdminDashboard() {
 
               {/* ACTION BUTTONS */}
 <div className="flex items-center gap-2">
+  {selectedSubmission?.paid && <PaidBadge />}
   <button 
     onClick={handleGenerateInsights}
     disabled={isGenerating}

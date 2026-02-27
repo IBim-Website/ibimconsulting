@@ -77,6 +77,12 @@ export async function POST(request) {
             });
             
             let submissionData = docs[0];
+            if(submissionData?.paid){
+                return NextResponse.json({ 
+                    success: true, 
+                    message: `Report already generated and sent to ${customerEmail}` 
+                }, { status: 200 });
+            }
 
             // Fetch AI content
             console.log("Fetching AI Report Content...");
