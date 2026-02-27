@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 import Stripe from 'stripe';
 import * as admin from 'firebase-admin';
 import { renderToBuffer } from '@react-pdf/renderer';
-import AssessmentPdfReport from '@/components/AssessmentPdfReport'; // UPDATE THIS PATH to where your PDF component is
+import AssessmentPdfReport from '@/app/AssessmentPdfReport'; // UPDATE THIS PATH to where your PDF component is
 
 // --- Initialize Stripe ---
 const stripe = new Stripe("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");
