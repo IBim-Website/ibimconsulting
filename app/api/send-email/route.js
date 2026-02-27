@@ -164,7 +164,7 @@ export async function POST(request) {
                   <div style="background-color: #111111; border-left: 4px solid #fbbf24; padding: 20px; margin: 30px 0; border-radius: 0 8px 8px 0;">
                     <p style="margin: 0; color: #e5e5e5; font-size: 16px; line-height: 1.5;">
                       ${pdfBuffer 
-                        ? 'We have attached your <strong>Premium Success Profile Report</strong> to this email. This includes your deep-dive psychological analysis and AI insights.' 
+                        ? 'We have attached your <strong>Premium Success Profile Report</strong> to this email. This includes your deep-dive psychological analysis.' 
                         : 'Your Premium Success Profile Report is currently being processed and will be sent to you shortly.'}
                     </p>
                   </div>
