@@ -94,6 +94,11 @@ export async function POST(request) {
               aiInsights: aiData.insights 
             };
 
+            await db.collection('submissions').doc(submissionData.id).update({
+                aiInsights: aiData.insights,
+                paid: true
+            });
+
             // Generate PDF Buffer on the server
             console.log("Generating PDF Buffer...");
             pdfBuffer = await renderToBuffer(<AssessmentPdfReport submission={fullReportData} />);
