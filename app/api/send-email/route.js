@@ -70,7 +70,7 @@ export async function POST(request) {
           
           if (!snapshot.empty) {
             // Sort locally to avoid needing a complex Firestore index for the demo, grab the latest one
-            const docs = snapshot.docs.map(doc => doc.data()).sort((a, b) => {
+            const docs = snapshot.docs.map(doc => { return {id: doc.id, ...doc.data()}}).sort((a, b) => {
               const timeA = a.submittedAt ? a.submittedAt.toMillis() : 0;
               const timeB = b.submittedAt ? b.submittedAt.toMillis() : 0;
               return timeB - timeA;
