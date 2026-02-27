@@ -132,7 +132,7 @@ export async function POST(request) {
         
         // Setup email options
         const customerEmailOptions = {
-          from: 'Digital Daze <notifications@digitaldaze.com.au>', 
+          from: 'Success Potential Quiz by Martial Peter <notifications@digitaldaze.com.au>', 
           to: [customerEmail],
           subject: `Your Premium Success Profile Analysis`,
           html: `
