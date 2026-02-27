@@ -114,7 +114,7 @@ export default function SuccessPotentialAssessment() {
 
   // Function to compile and download the PDF
   const handleDownloadPDF = async () => {
-    router.push("https://buy.stripe.com/test_8x2eVf3GTdz8bbz3rJ8EM00")
+    router.push("https://buy.stripe.com/aFacN7aWScb465cgVo4sE00")
     if (!fullReportData) return;
 
     try {
