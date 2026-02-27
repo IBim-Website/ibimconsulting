@@ -187,16 +187,24 @@ export async function POST(request) {
         console.log(`Customer email sent successfully to ${customerEmail}.`);
       }
 
+      return NextResponse.json({ 
+        success: true, 
+        message: `Report generated and sent to ${customerEmail}` 
+      }, { status: 200 });
+
     } else {
       console.log(`Unhandled event type: ${event.type}`);
+      // ADD THIS: Return the event type so you can see it in Stripe
+      return NextResponse.json({ 
+        received: true, 
+        event: event.type 
+      }, { status: 200 });
     }
-
-    return NextResponse.json({ received: true }, { status: 200 });
 
   } catch (error) {
     console.error('Error processing webhook event:', error);
     return NextResponse.json(
-      { error: 'Internal server error while processing webhook.' },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     );
   }
