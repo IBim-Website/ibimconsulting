@@ -165,7 +165,7 @@ export async function POST(request) {
 
                 <div style="border-top: 1px solid #222222; padding: 20px 30px; background-color: #050505; text-align: center;">
                   <p style="color: #52525b; font-size: 12px; margin: 0; text-transform: uppercase; letter-spacing: 1px;">
-                    Secure & Private Analysis | Digital Daze
+                    Secure & Private Analysis | Martial Peter
                   </p>
                 </div>
               </div>
