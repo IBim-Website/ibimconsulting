@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Image from 'next/image';
 
 export default function ShopLandingPage() {
   // Brand Colors:
@@ -25,10 +26,16 @@ export default function ShopLandingPage() {
       </div>
 
       <div className="z-10 w-full max-w-4xl text-center">
-        {/* Brand Header */}
-        <div className="mb-8 flex flex-col items-center">
-          <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-xl bg-[#D4AF37] font-black text-[#004761] text-3xl tracking-tighter shadow-2xl shadow-black/20">
-            iBIM
+        {/* Brand Header with SVG Logo */}
+        <div className="mb-10 flex flex-col items-center">
+          <div className="mb-6 relative h-24 w-48 transition-transform hover:scale-105">
+            <Image 
+              src="/logo.svg" 
+              alt="iBIM Consulting Logo" 
+              fill
+              priority
+              className="object-contain"
+            />
           </div>
           <h2 className="text-sm font-bold uppercase tracking-[0.4em] text-[#D4AF37]">
             Official Shop Launching Soon
@@ -49,17 +56,17 @@ export default function ShopLandingPage() {
 
         {/* Services Grid */}
         <div className="mb-16 grid grid-cols-1 gap-6 text-left sm:grid-cols-3">
-          <div className="group rounded-xl border border-[#D4AF37]/30 bg-white/5 p-6 backdrop-blur-md transition-all hover:border-[#D4AF37]">
+          <div className="group rounded-xl border border-[#D4AF37]/30 bg-white/5 p-6 backdrop-blur-md transition-all hover:border-[#D4AF37] hover:bg-white/10">
             <h3 className="mb-2 font-bold text-[#D4AF37]">Custom Plugins</h3>
-            <p className="text-sm text-slate-200/70">Powerful API tools built to slash manual detailing time for Steel and Precast projects.</p>
+            <p className="text-sm text-slate-200/70 text-pretty">Powerful API tools built to slash manual detailing time for Steel and Precast projects.</p>
           </div>
-          <div className="group rounded-xl border border-[#D4AF37]/30 bg-white/5 p-6 backdrop-blur-md transition-all hover:border-[#D4AF37]">
+          <div className="group rounded-xl border border-[#D4AF37]/30 bg-white/5 p-6 backdrop-blur-md transition-all hover:border-[#D4AF37] hover:bg-white/10">
             <h3 className="mb-2 font-bold text-[#D4AF37]">BIM Training</h3>
-            <p className="text-sm text-slate-200/70">Comprehensive courses focusing on real-world application and structural automation.</p>
+            <p className="text-sm text-slate-200/70 text-pretty">Comprehensive courses focusing on real-world application and structural automation.</p>
           </div>
-          <div className="group rounded-xl border border-[#D4AF37]/30 bg-white/5 p-6 backdrop-blur-md transition-all hover:border-[#D4AF37]">
+          <div className="group rounded-xl border border-[#D4AF37]/30 bg-white/5 p-6 backdrop-blur-md transition-all hover:border-[#D4AF37] hover:bg-white/10">
             <h3 className="mb-2 font-bold text-[#D4AF37]">Detailing Kits</h3>
-            <p className="text-sm text-slate-200/70">Pre-configured templates and components for residential and commercial detailing.</p>
+            <p className="text-sm text-slate-200/70 text-pretty">Pre-configured templates and components for residential and commercial detailing.</p>
           </div>
         </div>
 
