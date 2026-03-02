@@ -5,8 +5,8 @@ import Image from 'next/image';
 
 export default function ShopLandingPage() {
   // Brand Colors:
-  // Primary: #004761 (Deep Teal)
-  // Accent: #D4AF37 (Gold)
+  // Primary Background: #004761 (Deep Teal)
+  // Accent Color: #D4AF37 (Gold)
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#004761] px-6 py-12 text-white font-sans">
@@ -28,13 +28,16 @@ export default function ShopLandingPage() {
       <div className="z-10 w-full max-w-4xl text-center">
         {/* Brand Header with SVG Logo */}
         <div className="mb-10 flex flex-col items-center">
-          <div className="mb-6 relative h-24 w-48 transition-transform hover:scale-105">
+          {/* NOTE: The 'brightness-0 invert' filter classes below 
+             will turn a dark logo completely WHITE for contrast.
+          */}
+          <div className="mb-8 relative h-24 w-64 transition-transform hover:scale-105">
             <Image 
               src="/logo.svg" 
               alt="iBIM Consulting Logo" 
               fill
               priority
-              className="object-contain"
+              className="object-contain brightness-0 invert filter"
             />
           </div>
           <h2 className="text-sm font-bold uppercase tracking-[0.4em] text-[#D4AF37]">
