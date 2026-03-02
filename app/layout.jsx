@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Success Potential Quiz",
-  description: "This isn't just a standard personality test. It's a targeted analysis designed to measure your potential for extraordinary results.",
+  title: "Shop iBIM",
+  description: "Our specialized store for Tekla Structures automation tools, residential detailing plugins, and professional BIM training modules is currently undergoing a structural update.",
 };
 
 export default function RootLayout({
