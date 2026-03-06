@@ -59,15 +59,20 @@ export default function ToolsGrid({ isMounted }) {
   }, []);
 
   const filteredTools = tools.filter(tool => {
+    // 1. Search filter
     const matchesSearch = tool.name.toLowerCase().includes(searchQuery.toLowerCase());
-    // Using toLowerCase() to ensure matching between form inputs and hardcoded filter lists
+    
+    // 2. Category filter (handle both Array and String formats safely)
+    const catArray = Array.isArray(tool.category) ? tool.category : [tool.category || "Uncategorized"];
     const matchesCategory = selectedCategory === "All" || selectedCategory === "All Tools" 
       ? true 
-      : tool.category.toLowerCase() === selectedCategory.toLowerCase();
+      : catArray.some(c => c.toLowerCase() === selectedCategory.toLowerCase());
     
+    // 3. Package filter (handle both Array and String formats safely)
+    const pkgArray = Array.isArray(tool.package) ? tool.package : [tool.package || "None"];
     const matchesPackage = selectedPackage === "All" || selectedPackage === "All Tools" 
       ? true 
-      : tool.package.toLowerCase() === selectedPackage.toLowerCase();
+      : pkgArray.some(p => p.toLowerCase() === selectedPackage.toLowerCase());
     
     return matchesSearch && matchesCategory && matchesPackage;
   });
@@ -224,8 +229,8 @@ export default function ToolsGrid({ isMounted }) {
                             className="w-full h-full object-cover opacity-80 mix-blend-luminosity group-hover:opacity-100 group-hover:mix-blend-normal transition-all duration-700 scale-105 group-hover:scale-100"
                             />
                             <div className="absolute top-3 right-3 bg-[#020617]/80 backdrop-blur-md px-3 py-1 rounded-lg border border-amber-500/20 shadow-lg transform translate-y-[-10px] opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
-                                <span className="text-[10px] text-amber-200/80 uppercase tracking-widest font-bold">
-                                  {tool.category}
+                                <span className="text-[10px] text-amber-200/80 uppercase tracking-widest font-bold truncate block max-w-[120px]">
+                                  {Array.isArray(tool.category) ? tool.category.join(' • ') : tool.category}
                                 </span>
                             </div>
                         </div>

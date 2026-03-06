@@ -6,15 +6,17 @@ import StarterKit from '@tiptap/starter-kit';
 import { 
   Folder, Layers, Box, ImageIcon, DollarSign, 
   Youtube, Link as LinkIcon, FileCode2, ChevronRight, 
-  ChevronLeft, CheckCircle2, List, ListOrdered, Bold, Italic, Strikethrough
+  ChevronLeft, CheckCircle2, List, ListOrdered, Bold, 
+  Italic, Strikethrough, X, Check 
 } from 'lucide-react';
+import { categoriesList, packagesList } from '../constants';
 
 // --- TIPTAP EDITOR COMPONENT ---
 const RichTextEditor = ({ description, onChange }) => {
   const editor = useEditor({
     extensions: [StarterKit],
     content: description,
-    immediatelyRender: false, // <-- THIS IS THE FIX
+    immediatelyRender: false, 
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
@@ -62,8 +64,13 @@ export default function ProductUploadWizard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
   
+  // Custom Dropdown State
+  const [openDropdown, setOpenDropdown] = useState(null); 
+
   const [formData, setFormData] = useState({
-    category: '', subCategory: '', productName: '', annualPrice: '', oneTimePrice: '',
+    category: [],     // Updated to Array for multi-select
+    subCategory: [],  // Updated to Array for multi-select
+    productName: '', annualPrice: '', oneTimePrice: '',
     monthlyPrice: '', singleSystemPrice: '', actualAnnualPrice: '', actualOneTimePrice: '',
     actualMonthlyPrice: '', actualSingleSystemPrice: '', youtubeLink: '', productCode: '',
     downloadUrl: '', description: '',
@@ -74,6 +81,18 @@ export default function ProductUploadWizard() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // New function to handle Multi-Select toggling
+  const toggleSelection = (field, item) => {
+    setFormData(prev => {
+      const list = prev[field] || []; // Added the || [] fallback here
+      if (list.includes(item)) {
+        return { ...prev, [field]: list.filter(i => i !== item) };
+      } else {
+        return { ...prev, [field]: [...list, item] };
+      }
+    });
   };
 
   const handleDescriptionChange = (html) => {
@@ -115,8 +134,8 @@ export default function ProductUploadWizard() {
 
       const productPayload = {
         productName: formData.productName,
-        category: formData.category,
-        subCategory: formData.subCategory,
+        category: formData.category,       // Array of strings
+        subCategory: formData.subCategory, // Array of strings
         pricing: {
           annualPrice: formData.annualPrice, oneTimePrice: formData.oneTimePrice,
           monthlyPrice: formData.monthlyPrice, singleSystemPrice: formData.singleSystemPrice,
@@ -133,19 +152,10 @@ export default function ProductUploadWizard() {
       const result = await response.json();
 
       if (!response.ok) {
-        // --- NEW: DUPLICATE ERROR HANDLING ---
-        // Check if the nested errors array contains the specific CRM conflict code
-        const isDuplicate = result.details?.errors?.some(
-          (err) => err.errorCode === 'primary_property_conflict'
-        );
-
+        const isDuplicate = result.details?.errors?.some(err => err.errorCode === 'primary_property_conflict');
         if (isDuplicate) {
-          // If it's a duplicate, we throw a custom error to stop execution 
-          // and send them back to step 3 so they can fix it.
           throw new Error(`The Product Code "${formData.productCode}" already exists. Please use a unique code.`);
         }
-
-        // Fallback for any other API errors
         throw new Error(result.details?.message || result.error || 'Failed to upload product');
       }
 
@@ -154,7 +164,12 @@ export default function ProductUploadWizard() {
       setTimeout(() => {
         setStep(1);
         setStatus({ type: '', message: '' });
-        // Optional: clear form data here if you want a completely fresh form after success
+        setFormData({
+          category: [], subCategory: [], productName: '', annualPrice: '', oneTimePrice: '',
+          monthlyPrice: '', singleSystemPrice: '', actualAnnualPrice: '', actualOneTimePrice: '',
+          actualMonthlyPrice: '', actualSingleSystemPrice: '', youtubeLink: '', productCode: '', downloadUrl: '', description: ''
+        });
+        setImageFile(null);
       }, 3000); 
       
     } catch (error) {
@@ -164,32 +179,25 @@ export default function ProductUploadWizard() {
     }
   };
 
-  // Reusable styles
   const inputWrapper = "relative group";
-  const inputClass = "w-full bg-blue-950/20 border border-blue-500/20 rounded-xl pl-11 pr-4 py-3 text-blue-50 placeholder:text-blue-200/20 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/50 transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.2)] appearance-none";
-  const iconClass = "absolute left-4 top-3.5 text-blue-400/50 group-focus-within:text-cyan-400 transition-colors";
+  const inputClass = "w-full bg-blue-950/20 border border-blue-500/20 rounded-xl pl-11 pr-4 py-3 text-blue-50 placeholder:text-blue-200/20 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/50 transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.2)]";
+  const iconClass = "absolute left-4 top-3.5 text-blue-400/50 group-focus-within:text-cyan-400 transition-colors z-10";
   const labelClass = "block text-xs font-bold uppercase tracking-wider text-cyan-400/80 mb-2 ml-1";
 
   return (
     <div className="relative z-10 mx-auto max-w-4xl px-6 pt-10 pb-20">
       
-      {/* TipTap Custom Styles for ordered/unordered lists inside the editor */}
       <style>{`
         .prose ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
         .prose ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 1rem; }
         .prose p { margin-bottom: 0.5rem; }
         .prose p.is-editor-empty:first-child::before {
-          content: attr(data-placeholder);
-          float: left;
-          color: rgba(191, 219, 254, 0.2);
-          pointer-events: none;
-          height: 0;
+          content: attr(data-placeholder); float: left; color: rgba(191, 219, 254, 0.2); pointer-events: none; height: 0;
         }
       `}</style>
 
-      <div className="bg-[#0a0f1c]/80 border border-blue-500/10 backdrop-blur-xl rounded-3xl p-8 md:p-10 shadow-[0_0_80px_rgba(34,211,238,0.05)]">
+      <div className="bg-[#0a0f1c]/80 border border-blue-500/10 backdrop-blur-xl rounded-3xl p-8 md:p-10 shadow-[0_0_80px_rgba(34,211,238,0.05)] relative z-10">
         
-        {/* Header & Progress Indicator */}
         <div className="mb-10 border-b border-blue-500/10 pb-8">
           <div className="flex items-center gap-4 mb-6">
             <div className="h-8 w-2 bg-gradient-to-b from-cyan-400 to-blue-600 rounded-full"></div>
@@ -219,33 +227,110 @@ export default function ProductUploadWizard() {
           
           {/* STEP 1: BASICS */}
           {step === 1 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 relative z-20">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
+                
+                {/* Custom Category Multi-Select */}
+                <div className={`relative ${openDropdown === 'category' ? 'z-50' : 'z-10'}`}>
+                  {/* LOCAL BACKDROP */}
+                  {openDropdown === 'category' && (
+                    <div className="fixed inset-0 z-40 cursor-default" onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); }}></div>
+                  )}
+
                   <label className={labelClass}>Category</label>
-                  <div className={inputWrapper}>
+                  <div 
+                    className={`${inputWrapper} relative z-50`}
+                    onClick={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')}
+                  >
                     <Folder className={iconClass} size={20} />
-                    <select name="category" value={formData.category} onChange={handleInputChange} className={inputClass}>
-                      <option value="" disabled className="bg-blue-950">Select Category</option>
-                      <option value="tools" className="bg-blue-950">Tools</option>
-                      <option value="plugins" className="bg-blue-950">Plugins</option>
-                    </select>
+                    <div className={`${inputClass} flex items-center flex-wrap gap-2 min-h-[48px] cursor-pointer cursor-text`}>
+                      {formData.category.length === 0 ? (
+                        <span className="text-blue-200/20">Select Categories</span>
+                      ) : (
+                        formData.category.map(c => (
+                          <span key={c} className="bg-cyan-500/10 text-cyan-300 px-2.5 py-1 rounded-md text-xs border border-cyan-500/20 flex items-center gap-1.5 backdrop-blur-md">
+                            {c}
+                            <X size={12} className="hover:text-cyan-100 cursor-pointer" onClick={(e) => { e.stopPropagation(); toggleSelection('category', c); }} />
+                          </span>
+                        ))
+                      )}
+                    </div>
                   </div>
+                  
+                  {/* Category Dropdown Menu */}
+                  {openDropdown === 'category' && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-[#0A1025] border border-blue-500/30 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
+                      {categoriesList.filter(cat => cat !== "All" && cat !== "All Tools").map(cat => (
+                        <div 
+                          key={cat} 
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-blue-900/40 cursor-pointer transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelection('category', cat);
+                          }}
+                        >
+                          <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${formData.category.includes(cat) ? 'bg-cyan-500 border-cyan-500 text-[#0A1025]' : 'border-blue-500/50'}`}>
+                            {formData.category.includes(cat) && <Check size={14} strokeWidth={3} />}
+                          </div>
+                          <span className="text-blue-50 text-sm">{cat}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className={labelClass}>Sub Category</label>
-                  <div className={inputWrapper}>
+
+                {/* Custom Sub Category Multi-Select */}
+                <div className={`relative ${openDropdown === 'subCategory' ? 'z-50' : 'z-10'}`}>
+                  {/* LOCAL BACKDROP */}
+                  {openDropdown === 'subCategory' && (
+                    <div className="fixed inset-0 z-40 cursor-default" onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); }}></div>
+                  )}
+
+                  <label className={labelClass}>Sub Category (Package)</label>
+                  <div 
+                    className={`${inputWrapper} relative z-50`}
+                    onClick={() => setOpenDropdown(openDropdown === 'subCategory' ? null : 'subCategory')}
+                  >
                     <Layers className={iconClass} size={20} />
-                    <select name="subCategory" value={formData.subCategory} onChange={handleInputChange} className={inputClass}>
-                      <option value="" disabled className="bg-blue-950">Select Sub-Category</option>
-                      <option value="steel" className="bg-blue-950">Steel</option>
-                      <option value="concrete" className="bg-blue-950">Concrete</option>
-                    </select>
+                    <div className={`${inputClass} flex items-center flex-wrap gap-2 min-h-[48px] cursor-pointer cursor-text`}>
+                      {formData.subCategory.length === 0 ? (
+                        <span className="text-blue-200/20">Select Sub-Categories</span>
+                      ) : (
+                        formData.subCategory.map(pkg => (
+                          <span key={pkg} className="bg-amber-500/10 text-amber-300 px-2.5 py-1 rounded-md text-xs border border-amber-500/20 flex items-center gap-1.5 backdrop-blur-md">
+                            {pkg}
+                            <X size={12} className="hover:text-amber-100 cursor-pointer" onClick={(e) => { e.stopPropagation(); toggleSelection('subCategory', pkg); }} />
+                          </span>
+                        ))
+                      )}
+                    </div>
                   </div>
+
+                  {/* Sub Category Dropdown Menu */}
+                  {openDropdown === 'subCategory' && (
+                    <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-[#0A1025] border border-blue-500/30 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
+                      {packagesList.filter(pkg => pkg !== "All" && pkg !== "All Tools").map(pkg => (
+                        <div 
+                          key={pkg} 
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-blue-900/40 cursor-pointer transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelection('subCategory', pkg);
+                          }}
+                        >
+                          <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${formData.subCategory.includes(pkg) ? 'bg-amber-500 border-amber-500 text-[#0A1025]' : 'border-blue-500/50'}`}>
+                            {formData.subCategory.includes(pkg) && <Check size={14} strokeWidth={3} />}
+                          </div>
+                          <span className="text-blue-50 text-sm">{pkg}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                 <div>
                   <label className={labelClass}>Product Name</label>
                   <div className={inputWrapper}>
@@ -257,8 +342,8 @@ export default function ProductUploadWizard() {
                   <label className={labelClass}>Product Image</label>
                   <div className="relative group w-full h-[46px] bg-blue-950/20 border-2 border-dashed border-blue-500/30 rounded-xl hover:border-cyan-400/50 hover:bg-cyan-900/10 transition-all flex items-center px-4 overflow-hidden">
                     <input id="image-upload" type="file" accept=".jpg,.jpeg,.png,.gif" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                    <div className="flex items-center gap-3 text-sm text-blue-200/50 group-hover:text-cyan-300 transition-colors">
-                      <ImageIcon size={20} />
+                    <div className="flex items-center gap-3 text-sm text-blue-200/50 group-hover:text-cyan-300 transition-colors pl-7">
+                      <ImageIcon className={iconClass} size={20} />
                       {imageFile ? <span className="text-cyan-400 font-medium truncate max-w-[200px]">{imageFile.name}</span> : <span>Upload Cover Image</span>}
                     </div>
                   </div>
@@ -336,7 +421,7 @@ export default function ProductUploadWizard() {
           )}
 
           {/* Navigation Buttons */}
-          <div className="pt-6 border-t border-blue-500/10 flex items-center justify-between mt-8">
+          <div className="pt-6 border-t border-blue-500/10 flex items-center justify-between mt-8 relative z-10">
             <button 
               type="button" 
               onClick={prevStep}
