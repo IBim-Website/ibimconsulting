@@ -260,7 +260,7 @@ export default function ProductUploadWizard() {
                   {/* Category Dropdown Menu */}
                   {openDropdown === 'category' && (
                     <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-[#0A1025] border border-blue-500/30 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
-                      {categoriesList.filter(cat => cat !== "All" && cat !== "All Tools").map(cat => (
+                      {categoriesList.filter(cat => cat !== "All").map(cat => (
                         <div 
                           key={cat} 
                           className="flex items-center gap-3 px-4 py-3 hover:bg-blue-900/40 cursor-pointer transition-colors"
@@ -309,7 +309,7 @@ export default function ProductUploadWizard() {
                   {/* Sub Category Dropdown Menu */}
                   {openDropdown === 'subCategory' && (
                     <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-[#0A1025] border border-blue-500/30 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
-                      {packagesList.filter(pkg => pkg !== "All" && pkg !== "All Tools").map(pkg => (
+                      {packagesList.filter(pkg => pkg !== "All").map(pkg => (
                         <div 
                           key={pkg} 
                           className="flex items-center gap-3 px-4 py-3 hover:bg-blue-900/40 cursor-pointer transition-colors"
