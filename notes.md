@@ -1,0 +1,9 @@
+- Remove Packages filter
+- When they open the package modal, the images should show
+- https://ibimconsulting.com.au/tool/preset-end-plate
+- Will not have any license for the detailing kits
+- Landing page for detailing kits
+- New tools and Updated tools - new Categories.
+- Remove All tools.
+- In the tool page, update the video to image.
+- Do not put the description at the bottom.
