@@ -2,7 +2,7 @@
 
 export const categoriesList = [
   "All", "Residential", "Precast", "Connections", "Checking", 
-  "Drawing", "Reports", "All Tools", "Steel", "Warehouse"
+  "Drawing", "Reports", "Steel", "Warehouse"
 ];
 
 export const packagesList = [

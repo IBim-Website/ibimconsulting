@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { categoriesList } from '../constants'; 
 
-// Helper to convert standard YouTube URLs to Embed URLs and add autoplay/controls params
 const getEmbedUrl = (url) => {
   if (!url) return '';
   let videoId = '';
@@ -51,7 +51,6 @@ export default function ToolClient({ slug }) {
 
         const pricingData = parsedData.pricing || {};
 
-        // Auto-select the first available pricing option
         let defaultPlan = '';
         if (pricingData.oneTimePrice && parseFloat(pricingData.oneTimePrice) > 0) defaultPlan = 'oneTimePrice';
         else if (pricingData.annualPrice && parseFloat(pricingData.annualPrice) > 0) defaultPlan = 'annualPrice';
@@ -106,16 +105,83 @@ export default function ToolClient({ slug }) {
 
   const categoryArray = Array.isArray(tool.category) ? tool.category : [tool.category];
   
+  const validCategories = categoryArray.filter(cat => 
+    categoriesList.some(validCat => validCat.toLowerCase() === cat.toLowerCase())
+  );
+
   const hasMonthly = tool.pricing.monthlyPrice && parseFloat(tool.pricing.monthlyPrice) > 0;
   const hasAnnual = tool.pricing.annualPrice && parseFloat(tool.pricing.annualPrice) > 0;
   const hasOneTime = tool.pricing.oneTimePrice && parseFloat(tool.pricing.oneTimePrice) > 0;
+
+  // NEW: Calculate which plan has the highest price to apply the glow effect
+  const prices = {
+    oneTimePrice: hasOneTime ? parseFloat(tool.pricing.oneTimePrice) : 0,
+    annualPrice: hasAnnual ? parseFloat(tool.pricing.annualPrice) : 0,
+    monthlyPrice: hasMonthly ? parseFloat(tool.pricing.monthlyPrice) : 0,
+  };
+
+  let highestPriceKey = '';
+  let maxPrice = 0;
+  Object.entries(prices).forEach(([key, val]) => {
+    if (val > maxPrice) {
+      maxPrice = val;
+      highestPriceKey = key;
+    }
+  });
+
+  // NEW: Helper functions to keep the pricing card JSX clean
+  const getWrapperClasses = (planKey) => {
+    const isSelected = selectedPricing === planKey;
+    const isHighest = highestPriceKey === planKey;
+    let base = "flex-1 flex flex-col items-start justify-between p-3 rounded-xl border text-left transition-all duration-300 outline-none relative overflow-hidden group ";
+
+    if (isHighest) {
+      return base + (isSelected
+        ? 'border-amber-400 bg-gradient-to-br from-amber-900/40 to-[#020617]/80 shadow-[0_0_20px_rgba(245,158,11,0.3)]'
+        : 'border-amber-500/40 bg-gradient-to-br from-amber-900/10 to-[#020617]/60 hover:border-amber-400/80 hover:bg-amber-900/20 hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]');
+    }
+    return base + (isSelected
+      ? 'border-cyan-400 bg-cyan-950/30 shadow-[0_0_15px_rgba(34,211,238,0.1)]'
+      : 'border-blue-900/50 bg-[#020617]/60 hover:bg-blue-900/20 hover:border-blue-700/50');
+  };
+
+  const getRadioClasses = (planKey) => {
+    const isSelected = selectedPricing === planKey;
+    const isHighest = highestPriceKey === planKey;
+
+    if (isHighest) {
+      return {
+        outer: isSelected ? 'border-amber-400' : 'border-amber-600/60',
+        inner: isSelected ? 'bg-amber-400 opacity-100' : 'bg-amber-400 opacity-0'
+      };
+    }
+    return {
+      outer: isSelected ? 'border-cyan-400' : 'border-blue-700/80',
+      inner: isSelected ? 'bg-cyan-400 opacity-100' : 'bg-cyan-400 opacity-0'
+    };
+  };
+
+  const getTextClasses = (planKey) => {
+    const isSelected = selectedPricing === planKey;
+    const isHighest = highestPriceKey === planKey;
+
+    if (isHighest) {
+      return {
+        title: isSelected ? 'text-amber-300' : 'text-amber-300/70',
+        price: isSelected ? 'text-white' : 'text-amber-100/90'
+      };
+    }
+    return {
+      title: isSelected ? 'text-cyan-300' : 'text-blue-300/70',
+      price: isSelected ? 'text-white' : 'text-blue-100/80'
+    };
+  };
 
   return (
     <>
       <div className="h-screen bg-[#020617] text-white py-6 px-4 lg:px-8 flex flex-col overflow-hidden font-sans">
         <div className="mx-auto w-full max-w-[1400px] flex flex-col h-full">
           
-          {/* Top Bar: Back Navigation */}
           <div className="shrink-0 mb-4">
             <Link 
               href="/tools" 
@@ -124,79 +190,76 @@ export default function ToolClient({ slug }) {
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
               </svg>
-              Back to Grid
+              Back to Tools
             </Link>
           </div>
 
-          {/* Main Content Area */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
             
-            {/* LEFT SIDE: Header + Image + Action Box */}
-            {/* CHANGED: Removed overflow-y-auto so this column no longer scrolls */}
+            {/* LEFT SIDE: Header + Image (Merged) + Action Box */}
             <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4 min-h-0">
               
-              {/* Header / Title Box */}
-              <div className="bg-[#0A1025]/40 rounded-2xl border border-blue-900/30 p-5 shrink-0">
-                <div className="flex flex-wrap gap-1.5 mb-2.5">
-                  {categoryArray.map((cat, idx) => (
-                    <span key={idx} className="text-[9px] text-amber-200/80 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 uppercase tracking-widest font-bold rounded">
-                      {cat}
-                    </span>
-                  ))}
-                </div>
-                <h1 className="text-2xl lg:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-cyan-300 leading-tight">
-                  {tool.name}
-                </h1>
-              </div>
+              <div className="bg-[#0A1025]/80 rounded-2xl border border-blue-900/50 p-5 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] flex flex-col gap-5 shrink-0">
+                
+                <div>
+                  <div className="flex items-start justify-between gap-4 mb-2.5">
+                    <div className="flex flex-wrap gap-1.5">
+                      {validCategories.map((cat, idx) => (
+                        <span key={idx} className="text-[9px] text-amber-200/80 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 uppercase tracking-widest font-bold rounded">
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
+                    
+                    {tool.youtubeLink && (
+                      <button
+                        onClick={() => setActiveVideo(tool.youtubeLink)}
+                        className="shrink-0 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#020617]/80 text-blue-300 hover:text-cyan-300 hover:bg-cyan-600/20 border border-blue-900/50 hover:border-cyan-500/30 backdrop-blur-sm transition-all duration-300 text-xs shadow-lg group/vid"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 group-hover/vid:text-cyan-400">
+                          <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                        </svg>
+                        Watch Demo
+                      </button>
+                    )}
+                  </div>
 
-              {/* Image Container */}
-              {/* CHANGED: Swapped h-[30vh] shrink-0 for flex-1 min-h-[150px] so it dynamically resizes */}
-              <div className="relative w-full flex-1 min-h-[150px] rounded-2xl border border-blue-900/50 bg-[#0A1025]/80 p-1.5 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] flex items-center justify-center overflow-hidden">
-                <div className="w-full h-full rounded-xl overflow-hidden bg-black/50 border border-blue-900/30 relative flex items-center justify-center">
+                  <h1 className="text-2xl lg:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-cyan-300 leading-tight">
+                    {tool.name}
+                  </h1>
+                </div>
+
+                <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black/50 border border-blue-900/30 flex items-center justify-center">
                   <img 
                     src={tool.image} 
                     alt={tool.name} 
                     className="w-full h-full object-contain opacity-90 p-2"
                   />
-                  
-                  {tool.youtubeLink && (
-                    <button
-                      onClick={() => setActiveVideo(tool.youtubeLink)}
-                      className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#020617]/80 text-blue-300 hover:text-cyan-300 hover:bg-cyan-600/20 border border-blue-900/50 hover:border-cyan-500/30 backdrop-blur-sm transition-all duration-300 text-xs shadow-lg group/vid"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 group-hover/vid:text-cyan-400">
-                        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                      </svg>
-                      Watch Video
-                    </button>
-                  )}
                 </div>
               </div>
 
               {/* Action Box (Pricing Selection & Add to Cart) */}
-              {/* CHANGED: Adjusted padding slightly to guarantee it fits cleanly on smaller screens */}
               <div className="bg-[#0A1025]/40 rounded-2xl border border-blue-900/30 p-5 flex flex-col gap-4 shrink-0">
                 
-                {/* Selectable Pricing List */}
-                <div className="flex flex-col gap-2.5">
+                <div className="flex flex-row gap-2">
                   {hasOneTime && (
                     <button 
                       onClick={() => setSelectedPricing('oneTimePrice')}
-                      className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all duration-300 outline-none ${
-                        selectedPricing === 'oneTimePrice' 
-                          ? 'border-cyan-400 bg-cyan-950/30 shadow-[0_0_15px_rgba(34,211,238,0.1)]' 
-                          : 'border-blue-900/50 bg-[#020617]/60 hover:bg-blue-900/20 hover:border-blue-700/50'
-                      }`}
+                      className={getWrapperClasses('oneTimePrice')}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors ${selectedPricing === 'oneTimePrice' ? 'border-cyan-400' : 'border-blue-700/80'}`}>
-                          <div className={`w-2 h-2 rounded-full bg-cyan-400 transition-opacity ${selectedPricing === 'oneTimePrice' ? 'opacity-100' : 'opacity-0'}`}></div>
+                      {/* Optional extra glow element for the highest item */}
+                      {highestPriceKey === 'oneTimePrice' && (
+                        <div className="absolute -top-6 -right-6 w-16 h-16 bg-amber-500/20 blur-xl rounded-full pointer-events-none"></div>
+                      )}
+                      <div className="flex items-center gap-2 mb-2 w-full z-10">
+                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${getRadioClasses('oneTimePrice').outer}`}>
+                          <div className={`w-1.5 h-1.5 rounded-full transition-opacity ${getRadioClasses('oneTimePrice').inner}`}></div>
                         </div>
-                        <p className={`text-xs uppercase tracking-widest font-semibold transition-colors ${selectedPricing === 'oneTimePrice' ? 'text-cyan-300' : 'text-blue-300/70'}`}>
-                          Lifetime Deal
+                        <p className={`text-[10px] uppercase tracking-widest font-semibold truncate transition-colors ${getTextClasses('oneTimePrice').title}`}>
+                          Lifetime
                         </p>
                       </div>
-                      <p className={`text-xl font-extrabold transition-colors ${selectedPricing === 'oneTimePrice' ? 'text-white' : 'text-blue-100/80'}`}>
+                      <p className={`text-lg font-extrabold transition-colors z-10 ${getTextClasses('oneTimePrice').price}`}>
                         ${tool.pricing.oneTimePrice}
                       </p>
                     </button>
@@ -205,22 +268,21 @@ export default function ToolClient({ slug }) {
                   {hasAnnual && (
                     <button 
                       onClick={() => setSelectedPricing('annualPrice')}
-                      className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all duration-300 outline-none ${
-                        selectedPricing === 'annualPrice' 
-                          ? 'border-cyan-400 bg-cyan-950/30 shadow-[0_0_15px_rgba(34,211,238,0.1)]' 
-                          : 'border-blue-900/50 bg-[#020617]/60 hover:bg-blue-900/20 hover:border-blue-700/50'
-                      }`}
+                      className={getWrapperClasses('annualPrice')}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors ${selectedPricing === 'annualPrice' ? 'border-cyan-400' : 'border-blue-700/80'}`}>
-                          <div className={`w-2 h-2 rounded-full bg-cyan-400 transition-opacity ${selectedPricing === 'annualPrice' ? 'opacity-100' : 'opacity-0'}`}></div>
+                      {highestPriceKey === 'annualPrice' && (
+                        <div className="absolute -top-6 -right-6 w-16 h-16 bg-amber-500/20 blur-xl rounded-full pointer-events-none"></div>
+                      )}
+                      <div className="flex items-center gap-2 mb-2 w-full z-10">
+                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${getRadioClasses('annualPrice').outer}`}>
+                          <div className={`w-1.5 h-1.5 rounded-full transition-opacity ${getRadioClasses('annualPrice').inner}`}></div>
                         </div>
-                        <p className={`text-xs uppercase tracking-widest font-semibold transition-colors ${selectedPricing === 'annualPrice' ? 'text-cyan-300' : 'text-blue-300/70'}`}>
+                        <p className={`text-[10px] uppercase tracking-widest font-semibold truncate transition-colors ${getTextClasses('annualPrice').title}`}>
                           Annual
                         </p>
                       </div>
-                      <p className={`text-lg font-bold transition-colors ${selectedPricing === 'annualPrice' ? 'text-white' : 'text-blue-100/80'}`}>
-                        ${tool.pricing.annualPrice} <span className="text-xs font-normal opacity-70">/yr</span>
+                      <p className={`text-lg font-bold transition-colors z-10 ${getTextClasses('annualPrice').price}`}>
+                        ${tool.pricing.annualPrice} <span className="text-[10px] font-normal opacity-70">/yr</span>
                       </p>
                     </button>
                   )}
@@ -228,22 +290,21 @@ export default function ToolClient({ slug }) {
                   {hasMonthly && (
                     <button 
                       onClick={() => setSelectedPricing('monthlyPrice')}
-                      className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all duration-300 outline-none ${
-                        selectedPricing === 'monthlyPrice' 
-                          ? 'border-cyan-400 bg-cyan-950/30 shadow-[0_0_15px_rgba(34,211,238,0.1)]' 
-                          : 'border-blue-900/50 bg-[#020617]/60 hover:bg-blue-900/20 hover:border-blue-700/50'
-                      }`}
+                      className={getWrapperClasses('monthlyPrice')}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors ${selectedPricing === 'monthlyPrice' ? 'border-cyan-400' : 'border-blue-700/80'}`}>
-                          <div className={`w-2 h-2 rounded-full bg-cyan-400 transition-opacity ${selectedPricing === 'monthlyPrice' ? 'opacity-100' : 'opacity-0'}`}></div>
+                      {highestPriceKey === 'monthlyPrice' && (
+                        <div className="absolute -top-6 -right-6 w-16 h-16 bg-amber-500/20 blur-xl rounded-full pointer-events-none"></div>
+                      )}
+                      <div className="flex items-center gap-2 mb-2 w-full z-10">
+                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${getRadioClasses('monthlyPrice').outer}`}>
+                          <div className={`w-1.5 h-1.5 rounded-full transition-opacity ${getRadioClasses('monthlyPrice').inner}`}></div>
                         </div>
-                        <p className={`text-xs uppercase tracking-widest font-semibold transition-colors ${selectedPricing === 'monthlyPrice' ? 'text-cyan-300' : 'text-blue-300/70'}`}>
+                        <p className={`text-[10px] uppercase tracking-widest font-semibold truncate transition-colors ${getTextClasses('monthlyPrice').title}`}>
                           Monthly
                         </p>
                       </div>
-                      <p className={`text-lg font-bold transition-colors ${selectedPricing === 'monthlyPrice' ? 'text-white' : 'text-blue-100/80'}`}>
-                        ${tool.pricing.monthlyPrice} <span className="text-xs font-normal opacity-70">/mo</span>
+                      <p className={`text-lg font-bold transition-colors z-10 ${getTextClasses('monthlyPrice').price}`}>
+                        ${tool.pricing.monthlyPrice} <span className="text-[10px] font-normal opacity-70">/mo</span>
                       </p>
                     </button>
                   )}

@@ -25,9 +25,9 @@ export default function ToolsGrid({ isMounted }) {
   const [selectedPackage, setSelectedPackage] = useState("All");
   const [activeVideo, setActiveVideo] = useState(null);
 
-  // NEW: Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9; // Change this number to show more/less cards per page
+  // NEW: Load More State instead of Pagination
+  const itemsPerPage = 9; 
+  const [visibleCount, setVisibleCount] = useState(itemsPerPage);
 
   // Fetch tools from the CRM
   useEffect(() => {
@@ -75,9 +75,9 @@ export default function ToolsGrid({ isMounted }) {
     fetchTools();
   }, []);
 
-  // NEW: Reset to page 1 whenever filters change
+  // NEW: Reset visible count back to default whenever filters change
   useEffect(() => {
-    setCurrentPage(1);
+    setVisibleCount(itemsPerPage);
   }, [searchQuery, selectedCategory, selectedPackage]);
 
   // Apply filters
@@ -93,11 +93,8 @@ export default function ToolsGrid({ isMounted }) {
     return matchesSearch && matchesCategory && matchesPackage;
   });
 
-  // NEW: Calculate Pagination Slices
-  const totalPages = Math.ceil(filteredTools.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  // This is the array we actually map over to display the cards
-  const currentTools = filteredTools.slice(startIndex, startIndex + itemsPerPage);
+  // NEW: Slice the array from 0 up to the current visible count
+  const currentTools = filteredTools.slice(0, visibleCount);
 
   const handleClearFilters = () => {
     setSearchQuery("");
@@ -105,11 +102,8 @@ export default function ToolsGrid({ isMounted }) {
     setSelectedPackage("All");
   };
 
-  // Scroll to top of grid when page changes
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-    // Optional: Smooth scroll back to top of the grid 
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const handleLoadMore = () => {
+    setVisibleCount(prevCount => prevCount + itemsPerPage);
   };
 
   return (
@@ -182,11 +176,11 @@ export default function ToolsGrid({ isMounted }) {
               <h2 className="text-2xl font-bold text-white drop-shadow-lg transition-all">
                 {selectedCategory !== 'All' ? selectedCategory : 'All Automation Tools'}
               </h2>
-              {/* CHANGED: Dynamic result text to show pagination status */}
+              {/* UPDATED: Dynamic result text for Load More */}
               <span className="text-xs font-semibold text-cyan-300 px-3 py-1 bg-blue-950/60 rounded-md border border-blue-800/50 shadow-inner">
                 {isLoading ? '...' : (
                   filteredTools.length > 0 
-                  ? `Showing ${startIndex + 1}-${Math.min(startIndex + itemsPerPage, filteredTools.length)} of ${filteredTools.length}` 
+                  ? `Showing ${currentTools.length} of ${filteredTools.length}` 
                   : '0 Results'
                 )}
               </span>
@@ -219,7 +213,7 @@ export default function ToolsGrid({ isMounted }) {
               </div>
             )}
 
-            {/* Actual Grid - CHANGED: mapping over currentTools instead of filteredTools */}
+            {/* Actual Grid */}
             {!isLoading && !error && (
               <>
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
@@ -284,43 +278,14 @@ export default function ToolsGrid({ isMounted }) {
                   ))}
                 </div>
 
-                {/* NEW: Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="mt-12 flex items-center justify-center gap-2">
+                {/* NEW: Load More Button */}
+                {visibleCount < filteredTools.length && (
+                  <div className="mt-12 flex items-center justify-center">
                     <button
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="p-2 rounded-xl border border-blue-900/50 bg-[#0A1025]/80 text-blue-300 hover:bg-cyan-600/20 hover:text-cyan-300 hover:border-cyan-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={handleLoadMore}
+                      className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-cyan-600 text-white px-8 py-3 text-sm font-bold transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(37,99,235,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] border border-blue-400/20"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                      </svg>
-                    </button>
-                    
-                    <div className="flex gap-1.5 px-2">
-                      {[...Array(totalPages)].map((_, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handlePageChange(i + 1)}
-                          className={`w-10 h-10 rounded-xl font-bold text-sm transition-all duration-300 ${
-                            currentPage === i + 1 
-                              ? 'bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-[0_0_15px_rgba(34,211,238,0.3)] border border-cyan-400/50' 
-                              : 'bg-[#0A1025]/80 text-blue-300 border border-blue-900/50 hover:bg-blue-900/30 hover:text-cyan-300 hover:border-cyan-500/30'
-                          }`}
-                        >
-                          {i + 1}
-                        </button>
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className="p-2 rounded-xl border border-blue-900/50 bg-[#0A1025]/80 text-blue-300 hover:bg-cyan-600/20 hover:text-cyan-300 hover:border-cyan-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                      </svg>
+                      Load More Tools
                     </button>
                   </div>
                 )}

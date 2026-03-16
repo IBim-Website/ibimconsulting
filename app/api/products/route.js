@@ -1,4 +1,8 @@
 import { NextResponse } from 'next/server';
+import Stripe from 'stripe';
+
+// Initialize Stripe (Make sure STRIPE_SECRET_KEY is in your .env)
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST(request) {
   try {
@@ -29,6 +33,7 @@ export async function POST(request) {
 
     let uploadedImageUrl = null;
 
+    // 2. Upload Image to GHL Media Library
     if (imageFile) {
       const mediaFormData = new FormData();
       mediaFormData.append('file', imageFile);
@@ -54,6 +59,68 @@ export async function POST(request) {
       uploadedImageUrl = mediaData.url; 
     }
 
+    // 3. NEW: Parse Payload & Create Stripe Entities
+    let parsedData = {};
+    try {
+      parsedData = JSON.parse(productPayloadStr || "{}");
+    } catch (e) {
+      console.error("Failed to parse product payload", e);
+    }
+
+    // Create the Stripe Product
+    const stripeProduct = await stripe.products.create({
+      name: parsedData.productName || productCode,
+      description: parsedData.description?.replace(/<[^>]*>?/gm, '') || undefined, // strip HTML tags if any
+      images: uploadedImageUrl ? [uploadedImageUrl] : [],
+    });
+
+    const pricing = parsedData.pricing || {};
+    const stripeLinks = {};
+
+    // Helper to create Stripe Price and Payment Link
+    const createStripePriceAndLink = async (amountStr, interval) => {
+      if (!amountStr || isNaN(parseFloat(amountStr))) return null;
+      
+      const amountCents = Math.round(parseFloat(amountStr) * 100); // Stripe needs cents
+      if (amountCents <= 0) return null;
+
+      const priceConfig = {
+        product: stripeProduct.id,
+        unit_amount: amountCents,
+        currency: 'usd', 
+      };
+
+      if (interval) {
+        priceConfig.recurring = { interval: interval }; // 'month' or 'year'
+      }
+
+      const price = await stripe.prices.create(priceConfig);
+      const paymentLink = await stripe.paymentLinks.create({
+        line_items: [{ price: price.id, quantity: 1 }],
+      });
+
+      return paymentLink.url;
+    };
+
+    // Generate links for whichever prices were provided
+    if (pricing.oneTimePrice) {
+      stripeLinks.oneTimeUrl = await createStripePriceAndLink(pricing.oneTimePrice, null);
+    }
+    if (pricing.monthlyPrice) {
+      stripeLinks.monthlyUrl = await createStripePriceAndLink(pricing.monthlyPrice, 'month');
+    }
+    if (pricing.annualPrice) {
+      stripeLinks.annualUrl = await createStripePriceAndLink(pricing.annualPrice, 'year');
+    }
+
+    // Inject Stripe data back into the parsed data payload
+    parsedData.stripeProductId = stripeProduct.id;
+    parsedData.stripePaymentLinks = stripeLinks;
+
+    // Stringify the updated payload for GHL
+    const finalPayloadStr = JSON.stringify(parsedData);
+
+    // 4. Create Record in GHL Custom Object
     const endpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records`;
 
     const response = await fetch(endpoint, {
@@ -68,8 +135,7 @@ export async function POST(request) {
         locationId: locationId, 
         properties: {
           "tool_code": productCode,
-          "data": productPayloadStr || "{}", 
-          // 2. FIX: Wrap the URL in an object inside the array
+          "data": finalPayloadStr, // Using the new payload with Stripe info injected
           ...(uploadedImageUrl && { 
             "image": [
               { "url": uploadedImageUrl } 
@@ -91,7 +157,7 @@ export async function POST(request) {
     return NextResponse.json({ success: true, data });
 
   } catch (error) {
-    console.error("CRM Integration Error:", error);
+    console.error("Integration Error:", error);
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
   }
 }
@@ -102,11 +168,10 @@ export async function GET(request) {
     const locationId = "Dm5yFSciFNH7tur70UZU";
     const token = process.env.GROWTHMODE_ACCESS_TOKEN;
 
-    // 1. Point to the /records/search endpoint instead
     const endpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records/search`;
 
     const response = await fetch(endpoint, {
-      method: 'POST', // 2. GHL strictly requires POST here
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Version': '2021-07-28',
@@ -114,8 +179,8 @@ export async function GET(request) {
       },
       body: JSON.stringify({
         locationId: locationId,
-        page: 1,           // Required by GHL
-        pageLimit: 100     // Required by GHL (Adjust if you have more than 100 tools)
+        page: 1,           
+        pageLimit: 100     
       })
     });
 
@@ -128,8 +193,6 @@ export async function GET(request) {
     }
 
     const data = await response.json();
-    
-    // GHL's search endpoint returns an object like: { total: X, records: [...] }
     return NextResponse.json({ success: true, records: data.records || [] });
 
   } catch (error) {
