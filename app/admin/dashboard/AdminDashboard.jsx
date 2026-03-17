@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LayoutDashboard, PlusCircle, PenBox, LogOut, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, PenBox, LogOut, ShieldCheck, Link as LinkIcon } from 'lucide-react';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -40,7 +40,7 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* Navigation Grid */}
+      {/* Navigation Grid - 2 Columns */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
         
         {/* Create Tool Card */}
@@ -56,7 +56,7 @@ export default function AdminDashboard() {
               Add New Tool
             </h2>
             <p className="text-blue-200/60 leading-relaxed">
-              Launch the product creation wizard. Upload images, set pricing tiers, write rich-text descriptions, and generate new GoHighLevel records instantly.
+              Launch the product creation wizard. Upload images, set pricing tiers, write rich-text descriptions, and generate new records instantly.
             </p>
           </div>
         </Link>
@@ -74,8 +74,30 @@ export default function AdminDashboard() {
               Bulk Editor
             </h2>
             <p className="text-blue-200/60 leading-relaxed">
-              Open the spreadsheet-style inventory manager. Quickly adjust prices, rename tools, update categories, and sync all changes back to the database in one click.
+              Open the spreadsheet-style inventory manager. Quickly adjust prices, rename tools, update categories, and sync all changes back to the database.
             </p>
+          </div>
+        </Link>
+
+        {/* Link Directory Card - Spans full width on medium screens and up */}
+        <Link href="/admin/tools/links" className="group block md:col-span-2">
+          <div className="h-full bg-gradient-to-b from-[#0A1025]/80 to-[#020617]/90 border border-blue-900/50 rounded-3xl p-8 backdrop-blur-xl shadow-lg hover:shadow-[0_20px_40px_-10px_rgba(34,211,238,0.2)] hover:border-amber-500/50 transition-all duration-300 group-hover:-translate-y-2 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-colors"></div>
+            
+            <div className="flex flex-col md:flex-row md:items-center gap-6">
+              <div className="w-16 h-16 shrink-0 bg-blue-950/50 rounded-2xl flex items-center justify-center border border-blue-800/50 shadow-inner group-hover:border-amber-400/50 transition-colors">
+                <LinkIcon className="text-amber-400" size={32} />
+              </div>
+              
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-amber-300 transition-colors">
+                  Product Links Directory
+                </h2>
+                <p className="text-blue-200/60 leading-relaxed max-w-3xl">
+                  View the complete product directory table. Quickly search, identify product codes, and copy direct checkout and tool links for sharing with clients.
+                </p>
+              </div>
+            </div>
           </div>
         </Link>
 
