@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Wrench, GraduationCap, Blocks, ArrowRight, Timer } from 'lucide-react';
 
 export default function ShopLandingPage() {
@@ -13,12 +14,14 @@ export default function ShopLandingPage() {
     { 
       icon: Wrench, 
       title: "Custom Plugins", 
-      desc: "Powerful API tools built to slash manual detailing time for Steel and Precast projects." 
+      desc: "Powerful API tools built to slash manual detailing time for Steel and Precast projects.",
+      href: "/tools"
     },
     { 
       icon: GraduationCap, 
       title: "BIM Training", 
-      desc: "Comprehensive courses focusing on real-world application and structural automation." 
+      desc: "Comprehensive courses focusing on real-world application and structural automation.",
+      href: "https://learn.ibimconsulting.com.au/"
     },
     { 
       icon: Blocks, 
@@ -51,7 +54,7 @@ export default function ShopLandingPage() {
           <div className="mb-10 relative h-20 w-56 sm:h-24 sm:w-64 transition-transform hover:scale-105 duration-500">
             <Image 
               src="/logo.svg" 
-              alt="iBIM Consulting Logo" 
+              alt="IBim Consulting Logo" 
               fill
               priority
               className="object-contain brightness-0 invert filter drop-shadow-lg"
@@ -76,19 +79,17 @@ export default function ShopLandingPage() {
         </h1>
 
         <p className="mx-auto mb-16 max-w-2xl text-lg text-teal-50/80 leading-relaxed font-light text-pretty animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
-          The premier destination for specialized Tekla Structures plugins, 
-          residential detailing tools, and expert-led BIM training modules is coming soon.
+          The Premier Destination for specialized Tekla Structures Plugins for modelling, connections, drawings, reports and checking. And Training modules from Basic to Advanced level.
         </p>
 
         {/* Services Grid with Lucide Icons */}
         <div className="mb-20 grid grid-cols-1 gap-6 text-left sm:grid-cols-3 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
           {features.map((feature, index) => {
             const Icon = feature.icon;
-            return (
-              <div 
-                key={index} 
-                className="group relative overflow-hidden rounded-2xl border border-[#D4AF37]/20 bg-[#003b52]/60 p-8 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-[#D4AF37]/60 hover:bg-[#003b52]/90 hover:shadow-[0_15px_30px_-10px_rgba(212,175,55,0.2)]"
-              >
+            const cardClasses = `group relative overflow-hidden rounded-2xl border border-[#D4AF37]/20 bg-[#003b52]/60 p-8 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-[#D4AF37]/60 hover:bg-[#003b52]/90 hover:shadow-[0_15px_30px_-10px_rgba(212,175,55,0.2)] ${feature.href ? 'cursor-pointer block' : ''}`;
+            
+            const CardInnerContent = (
+              <>
                 {/* Decorative Top Highlight */}
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"></div>
                 
@@ -97,6 +98,37 @@ export default function ShopLandingPage() {
                 </div>
                 <h3 className="mb-3 text-xl font-bold text-white tracking-wide">{feature.title}</h3>
                 <p className="text-sm text-teal-100/60 leading-relaxed font-light">{feature.desc}</p>
+              </>
+            );
+
+            // Handle External Links
+            if (feature.href && feature.href.startsWith('http')) {
+              return (
+                <a 
+                  key={index} 
+                  href={feature.href} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className={cardClasses}
+                >
+                  {CardInnerContent}
+                </a>
+              );
+            }
+
+            // Handle Internal Links with Next.js Link
+            if (feature.href) {
+              return (
+                <Link key={index} href={feature.href} className={cardClasses}>
+                  {CardInnerContent}
+                </Link>
+              );
+            }
+
+            // Handle Cards with no link
+            return (
+              <div key={index} className={cardClasses}>
+                {CardInnerContent}
               </div>
             );
           })}
@@ -108,7 +140,7 @@ export default function ShopLandingPage() {
             href="https://ibimconsulting.com.au" 
             className="group relative flex items-center gap-3 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#e6c65c] px-10 py-4 font-bold tracking-wide text-[#004761] transition-all duration-300 hover:scale-105 active:scale-95 shadow-[0_10px_40px_-10px_rgba(212,175,55,0.4)]"
           >
-            Explore iBIM Consulting
+            Explore IBim Consulting
             <ArrowRight size={20} strokeWidth={2.5} className="transition-transform duration-300 group-hover:translate-x-1.5" />
           </a>
           
@@ -123,7 +155,7 @@ export default function ShopLandingPage() {
 
         {/* Technical Footer */}
         <footer className="mt-24 border-t border-[#D4AF37]/10 pt-8 text-[11px] uppercase tracking-[0.2em] text-teal-100/30 font-medium">
-          © 2026 iBIM Consulting Pty Ltd | shop.ibimconsulting.com.au
+          © 2026 IBim Consulting Pty Ltd | shop.ibimconsulting.com.au
         </footer>
       </div>
     </main>
