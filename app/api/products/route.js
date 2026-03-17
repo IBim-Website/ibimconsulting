@@ -262,7 +262,7 @@ export async function PATCH(request) {
 
     if (!getResponse.ok) throw new Error('Failed to fetch existing record from CRM');
     const existingRecord = await getResponse.json();
-    const existingProperties = existingRecord.properties || {};
+    const existingProperties = existingRecord?.record?.properties || {};
     
     let existingPayload = {};
     try {
@@ -270,6 +270,9 @@ export async function PATCH(request) {
     } catch (e) {
       existingPayload = {};
     }
+
+
+    console.log({ existingRecord, existingPayload  })
 
     const oldPricing = existingPayload.pricing || {};
     const newPricing = parsedNewData.pricing || {};
@@ -279,7 +282,7 @@ export async function PATCH(request) {
     if (!stripeProductId) {
       const newStripeProduct = await stripe.products.create({
         name: parsedNewData.productName || existingProperties.tool_code,
-        description: parsedNewData.description?.replace(/<[^>]*>?/gm, '').substring(0, 500) || undefined,
+        description: existingPayload.description?.replace(/<[^>]*>?/gm, '').substring(0, 500) || undefined,
       });
       stripeProductId = newStripeProduct.id;
     }
@@ -313,14 +316,27 @@ export async function PATCH(request) {
       links.annualLink = await createStripePriceAndLink(newPricing.annualPrice, 'year');
     }
 
+    // 5. THE FIX: Deep Merge Payload
+    // We spread existingPayload FIRST to keep descriptions and images, 
+    // then overwrite with parsedNewData for the fields edited in the table.
     const finalPayload = {
-      ...parsedNewData,
+      ...existingPayload, 
+      ...parsedNewData,   
       stripeProductId: stripeProductId,
-      links: { ...parsedNewData.links, ...links }
+      pricing: {
+        ...existingPayload.pricing,
+        ...parsedNewData.pricing
+      },
+      links: { 
+        ...existingPayload.links,
+        ...parsedNewData.links, 
+        ...links 
+      }
     };
 
-    // 5. THE FIX: Add locationId as a Query Parameter for the PUT request
-    // and use 'properties' in the body instead of 'fields'
+    console.log({ finalPayload })
+
+    // 6. Push Update to GoHighLevel
     const updateEndpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records/${recordId}?locationId=${locationId}`;
 
     const updateResponse = await fetch(updateEndpoint, {
@@ -331,11 +347,8 @@ export async function PATCH(request) {
           'Version': '2021-07-28',
         },
         body: JSON.stringify({
-          // ❌ REMOVED: name: parsedNewData.productName,
           properties: {
             data: JSON.stringify(finalPayload)
-            // If you need to update the tool_code, add it here:
-            // tool_code: parsedNewData.productCode 
           }
         })
       }
