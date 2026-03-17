@@ -236,202 +236,120 @@ export async function GET(request) {
 export async function PATCH(request) {
   try {
     const formData = await request.formData();
-    
-    // We need the CRM record ID to know which object to update
-    const recordId = formData.get('recordId'); 
-    const imageFile = formData.get('image'); 
-    const productPayloadStr = formData.get('productPayload'); 
-    
-    if (!recordId) {
-      return NextResponse.json({ error: 'Missing recordId' }, { status: 400 });
+    const recordId = formData.get('recordId');
+    const productPayload = formData.get('productPayload');
+
+    if (!recordId || !productPayload) {
+      return NextResponse.json({ error: 'Missing required update data' }, { status: 400 });
     }
 
-    // 1. Strict Backend File Type Validation
-    if (imageFile) {
-      const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
-      if (!validTypes.includes(imageFile.type)) {
-         return NextResponse.json(
-           { error: 'Invalid file type. Only JPG, PNG, and GIF are allowed.' }, 
-           { status: 400 }
-         );
-      }
-    }
-
-    const customObjectId = "69a6d83eb206eb7c36275bd5"; 
+    const parsedNewData = JSON.parse(productPayload);
+    const customObjectId = "69a6d83eb206eb7c36275bd5";
     const locationId = "Dm5yFSciFNH7tur70UZU";
     const token = process.env.GROWTHMODE_ACCESS_TOKEN;
 
-    // 2. Fetch Existing Record to protect productCode and get Stripe data
-    const fetchEndpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records/${recordId}`;
-    const existingRecordRes = await fetch(fetchEndpoint, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Version': '2021-07-28',
-        'Location-Id': locationId,
-      }
-    });
-
-    if (!existingRecordRes.ok) {
-       return NextResponse.json({ error: 'Record not found in CRM' }, { status: 404 });
-    }
-
-    const existingRecordData = await existingRecordRes.json();
-    const existingProperties = existingRecordData.properties || {};
-    const existingPayload = JSON.parse(existingProperties.data || "{}");
-    
-    // Protect the product code by pulling it straight from the existing DB record
-    const protectedProductCode = existingProperties.tool_code; 
-
-    // 3. Upload New Image to GHL Media Library (if a new one was provided)
-    let uploadedImageUrl = null;
-    if (imageFile) {
-      const mediaFormData = new FormData();
-      mediaFormData.append('file', imageFile);
-
-      const mediaResponse = await fetch('https://services.leadconnectorhq.com/medias/upload-file', {
-        method: 'POST',
+    // 1. Fetch the EXISTING record
+    const getResponse = await fetch(
+      `https://services.leadconnectorhq.com/objects/${customObjectId}/records/${recordId}`,
+      {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Version': '2021-07-28'
-        },
-        body: mediaFormData
-      });
-
-      if (!mediaResponse.ok) {
-        const mediaError = await mediaResponse.json();
-        return NextResponse.json(
-          { error: 'Failed to upload image to CRM', details: mediaError }, 
-          { status: mediaResponse.status }
-        );
+          'Version': '2021-07-28',
+          'Location-Id': locationId,
+        }
       }
+    );
 
-      const mediaData = await mediaResponse.json();
-      uploadedImageUrl = mediaData.url; 
-    } else if (existingProperties.image && existingProperties.image.length > 0) {
-      // Keep existing image if no new file is uploaded
-      uploadedImageUrl = existingProperties.image[0].url;
-    }
-
-    // 4. Parse New Payload
-    let parsedNewData = {};
+    if (!getResponse.ok) throw new Error('Failed to fetch existing record from CRM');
+    const existingRecord = await getResponse.json();
+    const existingProperties = existingRecord.properties || {};
+    
+    let existingPayload = {};
     try {
-      parsedNewData = JSON.parse(productPayloadStr || "{}");
+      existingPayload = JSON.parse(existingProperties.data || "{}");
     } catch (e) {
-      console.error("Failed to parse new product payload", e);
+      existingPayload = {};
     }
 
     const oldPricing = existingPayload.pricing || {};
     const newPricing = parsedNewData.pricing || {};
-    let currentLinks = existingPayload.stripePaymentLinks || {};
 
-    // Helper to create Stripe Price and Payment Link (using existing Product ID)
+    // 2. Ensure Stripe Product exists
+    let stripeProductId = existingPayload.stripeProductId;
+    if (!stripeProductId) {
+      const newStripeProduct = await stripe.products.create({
+        name: parsedNewData.productName || existingProperties.tool_code,
+        description: parsedNewData.description?.replace(/<[^>]*>?/gm, '').substring(0, 500) || undefined,
+      });
+      stripeProductId = newStripeProduct.id;
+    }
+
+    // 3. Stripe Price Helper
     const createStripePriceAndLink = async (amountStr, interval) => {
-      if (!amountStr || isNaN(parseFloat(amountStr))) return null;
-      
-      const amountCents = Math.round(parseFloat(amountStr) * 100); 
-      if (amountCents <= 0) return null;
-
+      const amount = parseFloat(amountStr);
+      if (!amountStr || isNaN(amount) || amount <= 0) return null;
       const priceConfig = {
-        product: existingPayload.stripeProductId, // Attach to the existing Stripe Product
-        unit_amount: amountCents,
-        currency: 'usd', 
+        product: stripeProductId,
+        unit_amount: Math.round(amount * 100),
+        currency: 'usd',
       };
-
-      if (interval) {
-        priceConfig.recurring = { interval: interval }; 
-      }
-
+      if (interval) priceConfig.recurring = { interval };
       const price = await stripe.prices.create(priceConfig);
       const paymentLink = await stripe.paymentLinks.create({
         line_items: [{ price: price.id, quantity: 1 }],
       });
-
       return paymentLink.url;
     };
 
-    // 5. Detect Price Changes & Regenerate Links
+    // 4. Update Links if Pricing changed
+    const links = { ...existingPayload.links };
     if (newPricing.oneTimePrice !== oldPricing.oneTimePrice) {
-      if (newPricing.oneTimePrice) {
-        currentLinks.oneTimeUrl = await createStripePriceAndLink(newPricing.oneTimePrice, null);
-      } else {
-        delete currentLinks.oneTimeUrl; // Remove the link if the price tier was deleted
-      }
+      links.oneTimeLink = await createStripePriceAndLink(newPricing.oneTimePrice);
     }
-    
     if (newPricing.monthlyPrice !== oldPricing.monthlyPrice) {
-      if (newPricing.monthlyPrice) {
-        currentLinks.monthlyUrl = await createStripePriceAndLink(newPricing.monthlyPrice, 'month');
-      } else {
-        delete currentLinks.monthlyUrl;
-      }
+      links.monthlyLink = await createStripePriceAndLink(newPricing.monthlyPrice, 'month');
     }
-    
     if (newPricing.annualPrice !== oldPricing.annualPrice) {
-      if (newPricing.annualPrice) {
-        currentLinks.annualUrl = await createStripePriceAndLink(newPricing.annualPrice, 'year');
-      } else {
-        delete currentLinks.annualUrl;
-      }
+      links.annualLink = await createStripePriceAndLink(newPricing.annualPrice, 'year');
     }
 
-    // Merge payloads: overwrite existing fields, but PROTECT Stripe/Code data
     const finalPayload = {
-      ...existingPayload, // Start with existing data
-      ...parsedNewData,   // Overwrite with any new edits
-      pricing: newPricing, // Ensure the newly updated pricing is saved
-      stripeProductId: existingPayload.stripeProductId, // Lock in the Stripe Product ID
-      stripePaymentLinks: currentLinks // Save the updated/existing links
+      ...parsedNewData,
+      stripeProductId: stripeProductId,
+      links: { ...parsedNewData.links, ...links }
     };
 
-    // 6. Update the Stripe Product Info (Name, Description, Image)
-    if (existingPayload.stripeProductId) {
-        await stripe.products.update(existingPayload.stripeProductId, {
-          name: finalPayload.productName || protectedProductCode,
-          description: finalPayload.description?.replace(/<[^>]*>?/gm, '') || undefined,
-          images: uploadedImageUrl ? [uploadedImageUrl] : [],
-        });
+    // 5. THE FIX: Add locationId as a Query Parameter for the PUT request
+    // and use 'properties' in the body instead of 'fields'
+    const updateEndpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records/${recordId}?locationId=${locationId}`;
+
+    const updateResponse = await fetch(updateEndpoint, {
+        method: 'PUT', 
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Version': '2021-07-28',
+        },
+        body: JSON.stringify({
+          // ❌ REMOVED: name: parsedNewData.productName,
+          properties: {
+            data: JSON.stringify(finalPayload)
+            // If you need to update the tool_code, add it here:
+            // tool_code: parsedNewData.productCode 
+          }
+        })
+      }
+    );
+
+    if (!updateResponse.ok) {
+      const errorData = await updateResponse.json();
+      return NextResponse.json({ error: 'Failed to update CRM', details: errorData }, { status: 400 });
     }
 
-    // 7. Update Record in GHL Custom Object (Using PUT method as required by GHL)
-    const updateEndpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records/${recordId}`;
-    const finalPayloadStr = JSON.stringify(finalPayload);
-
-    const response = await fetch(updateEndpoint, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Version': '2021-07-28',
-        'Location-Id': locationId,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        locationId: locationId, 
-        properties: {
-          "tool_code": protectedProductCode, // Explicitly locking in the protected code
-          "data": finalPayloadStr, 
-          ...(uploadedImageUrl && { 
-            "image": [
-              { "url": uploadedImageUrl } 
-            ] 
-          }) 
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: 'Failed to update product in CRM', details: errorData }, 
-        { status: response.status }
-      );
-    }
-
-    const data = await response.json();
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, message: 'Product updated successfully!' });
 
   } catch (error) {
-    console.error("Integration Update Error:", error);
+    console.error("PATCH Error:", error);
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
   }
 }
