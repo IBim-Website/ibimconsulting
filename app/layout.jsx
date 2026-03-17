@@ -1,4 +1,5 @@
-// app/layout.tsx
+import { CartProvider } from './CartContext'; // Adjust import path
+import FloatingCart from './FloatingCart';
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
@@ -50,7 +51,10 @@ export default function RootLayout({
                   <div className="absolute bottom-[-40%] left-[20%] w-[60%] h-[60%] rounded-full bg-amber-700/10 blur-[180px] mix-blend-screen" />
                 </div>
           
+                <CartProvider>
+                  <FloatingCart />
                   {children}
+                </CartProvider>
           
               </main>
         </ThemeProvider>

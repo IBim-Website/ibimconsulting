@@ -9,7 +9,7 @@ import {
   ChevronLeft, CheckCircle2, List, ListOrdered, Bold, 
   Italic, Strikethrough, X, Check 
 } from 'lucide-react';
-import { categoriesList, packagesList } from '../constants';
+import { categoriesList, packagesList } from '@/app/tools/constants';
 
 // --- TIPTAP EDITOR COMPONENT ---
 const RichTextEditor = ({ description, onChange }) => {
@@ -228,9 +228,7 @@ export default function ProductUploadWizard() {
           {/* STEP 1: BASICS */}
           {step === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 relative z-20">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Custom Category Multi-Select */}
+              <div className="w-full">
                 <div className={`relative ${openDropdown === 'category' ? 'z-50' : 'z-10'}`}>
                   {/* LOCAL BACKDROP */}
                   {openDropdown === 'category' && (
@@ -278,56 +276,6 @@ export default function ProductUploadWizard() {
                     </div>
                   )}
                 </div>
-
-                {/* Custom Sub Category Multi-Select */}
-                <div className={`relative ${openDropdown === 'subCategory' ? 'z-50' : 'z-10'}`}>
-                  {/* LOCAL BACKDROP */}
-                  {openDropdown === 'subCategory' && (
-                    <div className="fixed inset-0 z-40 cursor-default" onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); }}></div>
-                  )}
-
-                  <label className={labelClass}>Sub Category (Package)</label>
-                  <div 
-                    className={`${inputWrapper} relative z-50`}
-                    onClick={() => setOpenDropdown(openDropdown === 'subCategory' ? null : 'subCategory')}
-                  >
-                    <Layers className={iconClass} size={20} />
-                    <div className={`${inputClass} flex items-center flex-wrap gap-2 min-h-[48px] cursor-pointer cursor-text`}>
-                      {formData.subCategory.length === 0 ? (
-                        <span className="text-blue-200/20">Select Sub-Categories</span>
-                      ) : (
-                        formData.subCategory.map(pkg => (
-                          <span key={pkg} className="bg-amber-500/10 text-amber-300 px-2.5 py-1 rounded-md text-xs border border-amber-500/20 flex items-center gap-1.5 backdrop-blur-md">
-                            {pkg}
-                            <X size={12} className="hover:text-amber-100 cursor-pointer" onClick={(e) => { e.stopPropagation(); toggleSelection('subCategory', pkg); }} />
-                          </span>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Sub Category Dropdown Menu */}
-                  {openDropdown === 'subCategory' && (
-                    <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-[#0A1025] border border-blue-500/30 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
-                      {packagesList.filter(pkg => pkg !== "All").map(pkg => (
-                        <div 
-                          key={pkg} 
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-blue-900/40 cursor-pointer transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleSelection('subCategory', pkg);
-                          }}
-                        >
-                          <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${formData.subCategory.includes(pkg) ? 'bg-amber-500 border-amber-500 text-[#0A1025]' : 'border-blue-500/50'}`}>
-                            {formData.subCategory.includes(pkg) && <Check size={14} strokeWidth={3} />}
-                          </div>
-                          <span className="text-blue-50 text-sm">{pkg}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">

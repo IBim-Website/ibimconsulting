@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { categoriesList } from '../constants'; 
+import { useCart } from '@/app/CartContext'; // Adjust import path if necessary
 
 const getEmbedUrl = (url) => {
   if (!url) return '';
@@ -21,6 +22,10 @@ export default function ToolClient({ slug }) {
   const [error, setError] = useState(null);
   const [activeVideo, setActiveVideo] = useState(null);
   const [selectedPricing, setSelectedPricing] = useState('');
+  
+  // NEW: Cart Context and Button State
+  const { addToCart } = useCart();
+  const [isAdded, setIsAdded] = useState(false);
 
   useEffect(() => {
     const fetchToolDetails = async () => {
@@ -79,6 +84,34 @@ export default function ToolClient({ slug }) {
     if (slug) fetchToolDetails();
   }, [slug]);
 
+  // NEW: Add to Cart Handler
+  const handleAddToCart = () => {
+    if (!selectedPricing || !tool) return;
+
+    // Map the selected pricing key to a readable package name for the cart UI
+    let planName = "Monthly";
+    if (selectedPricing === 'oneTimePrice') planName = "Lifetime";
+    if (selectedPricing === 'annualPrice') planName = "Annual";
+
+    const cartItem = {
+      id: tool.id,
+      name: tool.name,
+      price: parseFloat(tool.pricing[selectedPricing]),
+      category: Array.isArray(tool.category) ? tool.category[0] : tool.category,
+      package: planName, 
+      image: tool.image,
+      slug: slug
+    };
+
+    addToCart(cartItem);
+
+    // Trigger success state for the button
+    setIsAdded(true);
+    setTimeout(() => {
+      setIsAdded(false);
+    }, 2000);
+  };
+
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#020617]">
@@ -113,7 +146,6 @@ export default function ToolClient({ slug }) {
   const hasAnnual = tool.pricing.annualPrice && parseFloat(tool.pricing.annualPrice) > 0;
   const hasOneTime = tool.pricing.oneTimePrice && parseFloat(tool.pricing.oneTimePrice) > 0;
 
-  // NEW: Calculate which plan has the highest price to apply the glow effect
   const prices = {
     oneTimePrice: hasOneTime ? parseFloat(tool.pricing.oneTimePrice) : 0,
     annualPrice: hasAnnual ? parseFloat(tool.pricing.annualPrice) : 0,
@@ -129,7 +161,6 @@ export default function ToolClient({ slug }) {
     }
   });
 
-  // NEW: Helper functions to keep the pricing card JSX clean
   const getWrapperClasses = (planKey) => {
     const isSelected = selectedPricing === planKey;
     const isHighest = highestPriceKey === planKey;
@@ -247,7 +278,6 @@ export default function ToolClient({ slug }) {
                       onClick={() => setSelectedPricing('oneTimePrice')}
                       className={getWrapperClasses('oneTimePrice')}
                     >
-                      {/* Optional extra glow element for the highest item */}
                       {highestPriceKey === 'oneTimePrice' && (
                         <div className="absolute -top-6 -right-6 w-16 h-16 bg-amber-500/20 blur-xl rounded-full pointer-events-none"></div>
                       )}
@@ -310,16 +340,32 @@ export default function ToolClient({ slug }) {
                   )}
                 </div>
 
-                {/* Add to Cart Button */}
+                {/* UPDATED: Add to Cart Button with Success State */}
                 <button 
-                  onClick={() => console.log(`Adding ${tool.name} (${selectedPricing}) to cart!`)}
-                  disabled={!selectedPricing}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white py-3.5 font-bold text-sm transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none"
+                  onClick={handleAddToCart}
+                  disabled={!selectedPricing || isAdded}
+                  className={`w-full flex items-center justify-center gap-2.5 rounded-xl py-3.5 font-bold text-sm transition-all duration-300 shadow-[0_0_20px_rgba(34,211,238,0.2)] disabled:cursor-not-allowed disabled:shadow-none
+                    ${isAdded 
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-none scale-100' 
+                      : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white active:scale-95 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] disabled:opacity-50 border border-transparent'
+                    }
+                  `}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
-                  </svg>
-                  Add to cart
+                  {isAdded ? (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                      Added to Cart!
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+                      </svg>
+                      Add to cart
+                    </>
+                  )}
                 </button>
               </div>
 

@@ -18,6 +18,11 @@ const getEmbedUrl = (url) => {
 export default function ToolsGrid({ isMounted }) {
   const [tools, setTools] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // NEW: API Pagination States
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -25,15 +30,16 @@ export default function ToolsGrid({ isMounted }) {
   const [selectedPackage, setSelectedPackage] = useState("All");
   const [activeVideo, setActiveVideo] = useState(null);
 
-  // NEW: Load More State instead of Pagination
-  const itemsPerPage = 9; 
-  const [visibleCount, setVisibleCount] = useState(itemsPerPage);
-
-  // Fetch tools from the CRM
+  // Fetch tools from the CRM whenever the `page` state changes
   useEffect(() => {
     const fetchTools = async () => {
+      // Differentiate between initial load and "Load More" load
+      if (page === 1) setIsLoading(true);
+      else setIsLoadingMore(true);
+
       try {
-        const response = await fetch('/api/products');
+        // Fetch exactly 9 items per page
+        const response = await fetch(`/api/products?page=${page}&limit=9`);
         const result = await response.json();
 
         if (!response.ok) throw new Error(result.error || 'Failed to fetch tools');
@@ -63,24 +69,33 @@ export default function ToolsGrid({ isMounted }) {
           };
         });
 
-        setTools(mappedTools);
+        // If page 1, replace the state. If > 1, append to existing state.
+        if (page === 1) {
+          setTools(mappedTools);
+        } else {
+          // Prevent accidental duplicates in case of fast double-clicking
+          setTools(prev => {
+            const newTools = mappedTools.filter(mt => !prev.some(pt => pt.id === mt.id));
+            return [...prev, ...newTools];
+          });
+        }
+        
+        // Use the hasMore boolean from our updated GET endpoint
+        setHasMore(result.hasMore);
+
       } catch (err) {
         console.error("Error loading tools:", err);
         setError(err.message);
       } finally {
         setIsLoading(false);
+        setIsLoadingMore(false);
       }
     };
 
     fetchTools();
-  }, []);
+  }, [page]);
 
-  // NEW: Reset visible count back to default whenever filters change
-  useEffect(() => {
-    setVisibleCount(itemsPerPage);
-  }, [searchQuery, selectedCategory, selectedPackage]);
-
-  // Apply filters
+  // Apply filters (now acts on the accumulated loaded tools)
   const filteredTools = tools.filter(tool => {
     const matchesSearch = tool.name.toLowerCase().includes(searchQuery.toLowerCase());
     const catArray = Array.isArray(tool.category) ? tool.category : [tool.category || "Uncategorized"];
@@ -93,9 +108,6 @@ export default function ToolsGrid({ isMounted }) {
     return matchesSearch && matchesCategory && matchesPackage;
   });
 
-  // NEW: Slice the array from 0 up to the current visible count
-  const currentTools = filteredTools.slice(0, visibleCount);
-
   const handleClearFilters = () => {
     setSearchQuery("");
     setSelectedCategory("All");
@@ -103,7 +115,9 @@ export default function ToolsGrid({ isMounted }) {
   };
 
   const handleLoadMore = () => {
-    setVisibleCount(prevCount => prevCount + itemsPerPage);
+    if (!isLoadingMore && hasMore) {
+      setPage(prevPage => prevPage + 1);
+    }
   };
 
   return (
@@ -176,17 +190,16 @@ export default function ToolsGrid({ isMounted }) {
               <h2 className="text-2xl font-bold text-white drop-shadow-lg transition-all">
                 {selectedCategory !== 'All' ? selectedCategory : 'All Automation Tools'}
               </h2>
-              {/* UPDATED: Dynamic result text for Load More */}
               <span className="text-xs font-semibold text-cyan-300 px-3 py-1 bg-blue-950/60 rounded-md border border-blue-800/50 shadow-inner">
                 {isLoading ? '...' : (
                   filteredTools.length > 0 
-                  ? `Showing ${currentTools.length} of ${filteredTools.length}` 
+                  ? `${filteredTools.length} Loaded` 
                   : '0 Results'
                 )}
               </span>
             </div>
 
-            {/* Loading State Skeleton */}
+            {/* Initial Loading State Skeleton */}
             {isLoading && (
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 {[1, 2, 3, 4, 5, 6].map((skel) => (
@@ -217,10 +230,10 @@ export default function ToolsGrid({ isMounted }) {
             {!isLoading && !error && (
               <>
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                  {currentTools.map((tool, index) => (
+                  {filteredTools.map((tool, index) => (
                     <div 
-                      key={tool.id} 
-                      style={{ transitionDelay: `${(index % itemsPerPage) * 100}ms` }}
+                      key={`${tool.id}-${index}`} // Composite key in case of accidental append duplicates
+                      style={{ transitionDelay: `${(index % 9) * 100}ms` }}
                       className={`group relative flex flex-col justify-between rounded-3xl bg-gradient-to-b from-[#0A1025]/90 to-[#020617]/90 p-1.5 backdrop-blur-xl transition-all duration-700 ease-out hover:-translate-y-2 hover:shadow-[0_15px_40px_-10px_rgba(59,130,246,0.3)] ${
                         isMounted ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'
                       }`}
@@ -278,8 +291,19 @@ export default function ToolsGrid({ isMounted }) {
                   ))}
                 </div>
 
-                {/* NEW: Load More Button */}
-                {visibleCount < filteredTools.length && (
+                {/* Loading More State */}
+                {isLoadingMore && (
+                  <div className="mt-12 flex justify-center items-center gap-3 text-cyan-400 font-bold uppercase tracking-widest text-sm">
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Fetching...
+                  </div>
+                )}
+
+                {/* API Paginated Load More Button */}
+                {!isLoadingMore && hasMore && (
                   <div className="mt-12 flex items-center justify-center">
                     <button
                       onClick={handleLoadMore}
