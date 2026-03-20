@@ -28,42 +28,39 @@ export default function RootLayout({ children }) {
           defaultTheme="dark"
           forcedTheme="dark"
         >
-          {/* Background Lifted: 
-            From #020617 (near black) to #0f172a (Slate 900).
-            Added a subtle radial gradient to give the screen a "center-lit" feel.
+          {/* Background: #060b1a is the mathematical "middle" between your two previous versions.
+            It feels deep and expensive without being pitch black.
           */}
-          <main className="min-h-screen bg-[#0f172a] bg-[radial-gradient(circle_at_50%_0%,rgba(30,41,59,1)_0%,rgba(15,23,42,1)_100%)] text-slate-200 font-sans selection:bg-amber-500/30 selection:text-amber-100 pb-24 overflow-hidden relative">
+          <main className="min-h-screen bg-[#060b1a] text-slate-100 font-sans selection:bg-blue-500/30 selection:text-blue-100 pb-24 overflow-hidden relative">
             
-            {/* Grid: 
-               Changed from blue-200/20 to slate-500/10 for a cleaner, 
-               less "neon" technical look.
+            {/* Technical Grid: 
+              Refined to 0.1 opacity so it's a "whisper" of a grid.
             */}
             <div 
-              className="fixed inset-0 z-0 opacity-[0.2] pointer-events-none" 
+              className="fixed inset-0 z-0 opacity-[0.1] pointer-events-none" 
               style={{ 
-                backgroundImage: 'linear-gradient(rgba(71, 85, 105, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(71, 85, 105, 0.2) 1px, transparent 1px)', 
-                backgroundSize: '45px 45px' 
+                backgroundImage: 'linear-gradient(rgba(59, 130, 246, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, 0.2) 1px, transparent 1px)', 
+                backgroundSize: '40px 40px' 
               }}
             />
       
-            {/* Elevated Ambient Glows:
-               We use lighter shades (blue-600/indigo-500) but keep opacity low 
-               to create "soft light" rather than "dark shadows".
+            {/* Ambient Lighting: 
+              We've tightened the blur and lowered the intensity so the 
+              background has "volume" without looking like a disco.
             */}
             <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none transition-opacity duration-1000">
-              {/* Top Left Glow */}
-              <div className="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] rounded-full bg-blue-600/10 blur-[120px] animate-pulse" style={{ animationDuration: '10s' }} />
+              {/* Soft Blue Top Glow */}
+              <div className="absolute -top-[20%] -left-[10%] w-[70%] h-[70%] rounded-full bg-blue-900/20 blur-[120px] mix-blend-screen animate-pulse" style={{ animationDuration: '12s' }} />
               
-              {/* Center Right Glow */}
-              <div className="absolute top-[20%] -right-[10%] w-[50%] h-[50%] rounded-full bg-indigo-500/10 blur-[120px]" />
+              {/* Very Subtle Indigo Center */}
+              <div className="absolute top-[15%] -right-[15%] w-[60%] h-[60%] rounded-full bg-indigo-900/15 blur-[140px] mix-blend-screen" />
               
-              {/* Subtle Bottom Warmth */}
-              <div className="absolute bottom-[-20%] left-[20%] w-[50%] h-[50%] rounded-full bg-slate-400/5 blur-[150px]" />
+              {/* Muted Amber Bottom - lowered to 5% opacity for just a hint of warmth */}
+              <div className="absolute bottom-[-30%] left-[15%] w-[50%] h-[50%] rounded-full bg-amber-900/5 blur-[160px] mix-blend-screen" />
             </div>
       
             <CartProvider>
               <FloatingCart />
-              {/* Relative Z-index to ensure content sits above the glows */}
               <div className="relative z-10">
                 {children}
               </div>
