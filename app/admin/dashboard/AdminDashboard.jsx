@@ -3,7 +3,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LayoutDashboard, PlusCircle, PenBox, LogOut, ShieldCheck, Link as LinkIcon } from 'lucide-react';
+import { 
+  PlusCircle, PenBox, LogOut, ShieldCheck, Link as LinkIcon, 
+  Wrench, Package, ChevronRight 
+} from 'lucide-react';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -40,66 +43,131 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* Navigation Grid - 2 Columns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
+      {/* 2-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* Create Tool Card */}
-        <Link href="/admin/tools/create" className="group block">
-          <div className="h-full bg-gradient-to-b from-[#0A1025]/80 to-[#020617]/90 border border-blue-900/50 rounded-3xl p-8 backdrop-blur-xl shadow-lg hover:shadow-[0_20px_40px_-10px_rgba(34,211,238,0.2)] hover:border-cyan-500/50 transition-all duration-300 group-hover:-translate-y-2 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-cyan-500/20 transition-colors"></div>
+        {/* --- COLUMN 1: TOOLS --- */}
+        <div className="flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700">
+          <div className="bg-gradient-to-b from-[#0A1025]/90 to-[#020617]/90 border border-blue-900/50 rounded-3xl p-8 backdrop-blur-xl shadow-lg relative overflow-hidden h-full flex flex-col">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
             
-            <div className="w-16 h-16 bg-blue-950/50 rounded-2xl flex items-center justify-center border border-blue-800/50 shadow-inner mb-6 group-hover:border-cyan-400/50 transition-colors">
-              <PlusCircle className="text-cyan-400" size={32} />
-            </div>
-            
-            <h2 className="text-2xl font-bold text-white mb-3 group-hover:text-cyan-300 transition-colors">
-              Add New Tool
-            </h2>
-            <p className="text-blue-200/60 leading-relaxed">
-              Launch the product creation wizard. Upload images, set pricing tiers, write rich-text descriptions, and generate new records instantly.
-            </p>
-          </div>
-        </Link>
-
-        {/* Update Tool Card */}
-        <Link href="/admin/tools/update" className="group block">
-          <div className="h-full bg-gradient-to-b from-[#0A1025]/80 to-[#020617]/90 border border-blue-900/50 rounded-3xl p-8 backdrop-blur-xl shadow-lg hover:shadow-[0_20px_40px_-10px_rgba(34,211,238,0.2)] hover:border-cyan-500/50 transition-all duration-300 group-hover:-translate-y-2 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full blur-3xl pointer-events-none group-hover:bg-blue-600/20 transition-colors"></div>
-            
-            <div className="w-16 h-16 bg-blue-950/50 rounded-2xl flex items-center justify-center border border-blue-800/50 shadow-inner mb-6 group-hover:border-cyan-400/50 transition-colors">
-              <PenBox className="text-cyan-400" size={32} />
-            </div>
-            
-            <h2 className="text-2xl font-bold text-white mb-3 group-hover:text-cyan-300 transition-colors">
-              Bulk Editor
-            </h2>
-            <p className="text-blue-200/60 leading-relaxed">
-              Open the spreadsheet-style inventory manager. Quickly adjust prices, rename tools, update categories, and sync all changes back to the database.
-            </p>
-          </div>
-        </Link>
-
-        {/* Link Directory Card - Spans full width on medium screens and up */}
-        <Link href="/admin/tools/links" className="group block md:col-span-2">
-          <div className="h-full bg-gradient-to-b from-[#0A1025]/80 to-[#020617]/90 border border-blue-900/50 rounded-3xl p-8 backdrop-blur-xl shadow-lg hover:shadow-[0_20px_40px_-10px_rgba(34,211,238,0.2)] hover:border-amber-500/50 transition-all duration-300 group-hover:-translate-y-2 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/20 transition-colors"></div>
-            
-            <div className="flex flex-col md:flex-row md:items-center gap-6">
-              <div className="w-16 h-16 shrink-0 bg-blue-950/50 rounded-2xl flex items-center justify-center border border-blue-800/50 shadow-inner group-hover:border-amber-400/50 transition-colors">
-                <LinkIcon className="text-amber-400" size={32} />
+            <div className="flex items-center gap-3 mb-8 relative z-10 border-b border-blue-500/10 pb-6">
+              <div className="p-3 bg-blue-950/50 rounded-xl border border-blue-800/50 shadow-inner">
+                <Wrench className="text-cyan-400" size={28} />
               </div>
-              
               <div>
-                <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-amber-300 transition-colors">
-                  Product Links Directory
-                </h2>
-                <p className="text-blue-200/60 leading-relaxed max-w-3xl">
-                  View the complete product directory table. Quickly search, identify product codes, and copy direct checkout and tool links for sharing with clients.
-                </p>
+                <h2 className="text-2xl font-bold text-white tracking-wide">Tools</h2>
+                <p className="text-blue-200/50 text-sm">Manage individual products</p>
               </div>
             </div>
+            
+            <div className="space-y-4 flex-grow relative z-10 flex flex-col justify-center">
+              {/* Add Tool */}
+              <Link href="/admin/tools/create" className="group block">
+                <div className="flex items-center gap-5 p-5 rounded-2xl bg-blue-950/20 border border-blue-800/30 hover:bg-blue-900/40 hover:border-cyan-500/50 hover:shadow-[0_10px_30px_-10px_rgba(34,211,238,0.15)] transition-all duration-300 group-hover:-translate-y-1">
+                  <div className="p-3 rounded-xl bg-black/30 text-blue-400 group-hover:text-cyan-400 group-hover:bg-cyan-950/50 transition-colors">
+                    <PlusCircle size={24} />
+                  </div>
+                  <div className="flex-grow">
+                    <h3 className="text-lg font-bold text-blue-50 group-hover:text-cyan-300 transition-colors">Add New Tool</h3>
+                    <p className="text-sm text-blue-200/60">Launch creation wizard</p>
+                  </div>
+                  <ChevronRight size={20} className="text-blue-500/30 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
+                </div>
+              </Link>
+
+              {/* Edit Tool */}
+              <Link href="/admin/tools/update" className="group block">
+                <div className="flex items-center gap-5 p-5 rounded-2xl bg-blue-950/20 border border-blue-800/30 hover:bg-blue-900/40 hover:border-cyan-500/50 hover:shadow-[0_10px_30px_-10px_rgba(34,211,238,0.15)] transition-all duration-300 group-hover:-translate-y-1">
+                  <div className="p-3 rounded-xl bg-black/30 text-blue-400 group-hover:text-cyan-400 group-hover:bg-cyan-950/50 transition-colors">
+                    <PenBox size={24} />
+                  </div>
+                  <div className="flex-grow">
+                    <h3 className="text-lg font-bold text-blue-50 group-hover:text-cyan-300 transition-colors">Bulk Editor</h3>
+                    <p className="text-sm text-blue-200/60">Update existing inventory</p>
+                  </div>
+                  <ChevronRight size={20} className="text-blue-500/30 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
+                </div>
+              </Link>
+
+              {/* Tool Directory */}
+              <Link href="/admin/tools/links" className="group block">
+                <div className="flex items-center gap-5 p-5 rounded-2xl bg-blue-950/20 border border-blue-800/30 hover:bg-blue-900/40 hover:border-cyan-500/50 hover:shadow-[0_10px_30px_-10px_rgba(34,211,238,0.15)] transition-all duration-300 group-hover:-translate-y-1">
+                  <div className="p-3 rounded-xl bg-black/30 text-blue-400 group-hover:text-cyan-400 group-hover:bg-cyan-950/50 transition-colors">
+                    <LinkIcon size={24} />
+                  </div>
+                  <div className="flex-grow">
+                    <h3 className="text-lg font-bold text-blue-50 group-hover:text-cyan-300 transition-colors">Directory</h3>
+                    <p className="text-sm text-blue-200/60">View all tool URLs & IDs</p>
+                  </div>
+                  <ChevronRight size={20} className="text-blue-500/30 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
+                </div>
+              </Link>
+            </div>
           </div>
-        </Link>
+        </div>
+
+
+        {/* --- COLUMN 2: PACKAGES --- */}
+        <div className="flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150">
+          <div className="bg-gradient-to-b from-[#0A1025]/90 to-[#020617]/90 border border-blue-900/50 rounded-3xl p-8 backdrop-blur-xl shadow-lg relative overflow-hidden h-full flex flex-col">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div className="flex items-center gap-3 mb-8 relative z-10 border-b border-blue-500/10 pb-6">
+              <div className="p-3 bg-blue-950/50 rounded-xl border border-blue-800/50 shadow-inner">
+                <Package className="text-emerald-400" size={28} />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white tracking-wide">Packages</h2>
+                <p className="text-blue-200/50 text-sm">Manage product bundles</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4 flex-grow relative z-10 flex flex-col justify-center">
+              {/* Add Package */}
+              <Link href="/admin/packages/create" className="group block">
+                <div className="flex items-center gap-5 p-5 rounded-2xl bg-blue-950/20 border border-blue-800/30 hover:bg-blue-900/40 hover:border-emerald-500/50 hover:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.15)] transition-all duration-300 group-hover:-translate-y-1">
+                  <div className="p-3 rounded-xl bg-black/30 text-emerald-600 group-hover:text-emerald-400 group-hover:bg-emerald-950/50 transition-colors">
+                    <PlusCircle size={24} />
+                  </div>
+                  <div className="flex-grow">
+                    <h3 className="text-lg font-bold text-blue-50 group-hover:text-emerald-300 transition-colors">Add New Package</h3>
+                    <p className="text-sm text-blue-200/60">Bundle multiple products</p>
+                  </div>
+                  <ChevronRight size={20} className="text-blue-500/30 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
+                </div>
+              </Link>
+
+              {/* Edit Package */}
+              <Link href="/admin/packages/update" className="group block">
+                <div className="flex items-center gap-5 p-5 rounded-2xl bg-blue-950/20 border border-blue-800/30 hover:bg-blue-900/40 hover:border-emerald-500/50 hover:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.15)] transition-all duration-300 group-hover:-translate-y-1">
+                  <div className="p-3 rounded-xl bg-black/30 text-emerald-600 group-hover:text-emerald-400 group-hover:bg-emerald-950/50 transition-colors">
+                    <PenBox size={24} />
+                  </div>
+                  <div className="flex-grow">
+                    <h3 className="text-lg font-bold text-blue-50 group-hover:text-emerald-300 transition-colors">Package Editor</h3>
+                    <p className="text-sm text-blue-200/60">Modify existing bundles</p>
+                  </div>
+                  <ChevronRight size={20} className="text-blue-500/30 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
+                </div>
+              </Link>
+
+              {/* Package Directory */}
+              <Link href="/admin/packages/links" className="group block">
+                <div className="flex items-center gap-5 p-5 rounded-2xl bg-blue-950/20 border border-blue-800/30 hover:bg-blue-900/40 hover:border-purple-500/50 hover:shadow-[0_10px_30px_-10px_rgba(168,85,247,0.15)] transition-all duration-300 group-hover:-translate-y-1">
+                  <div className="p-3 rounded-xl bg-black/30 text-emerald-600 group-hover:text-purple-400 group-hover:bg-purple-950/50 transition-colors">
+                    <LinkIcon size={24} />
+                  </div>
+                  <div className="flex-grow">
+                    <h3 className="text-lg font-bold text-blue-50 group-hover:text-purple-300 transition-colors">Directory</h3>
+                    <p className="text-sm text-blue-200/60">View all package URLs & IDs</p>
+                  </div>
+                  <ChevronRight size={20} className="text-blue-500/30 group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
+                </div>
+              </Link>
+            </div>
+          </div>
+        </div>
 
       </div>
     </div>

@@ -4,69 +4,29 @@ export async function POST(request) {
   try {
     const formData = await request.formData();
     
-    const imageFile = formData.get('image'); 
-    const productCode = formData.get('productCode');
-    const productPayloadStr = formData.get('productPayload'); 
+    const packageCode = formData.get('packageCode');
+    const packagePayloadStr = formData.get('packagePayload'); 
     
-    if (!productCode) {
-      return NextResponse.json({ error: 'Missing productCode' }, { status: 400 });
+    if (!packageCode) {
+      return NextResponse.json({ error: 'Missing packageCode' }, { status: 400 });
     }
 
-    // 1. Strict Backend File Type Validation
-    if (imageFile) {
-      const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
-      if (!validTypes.includes(imageFile.type)) {
-         return NextResponse.json(
-           { error: 'Invalid file type. Only JPG, PNG, and GIF are allowed.' }, 
-           { status: 400 }
-         );
-      }
-    }
-
-    const customObjectId = "69a6d83eb206eb7c36275bd5"; 
+    const customObjectId = "69bca8aea9a868c2ba27a4a6"; 
     const locationId = "Dm5yFSciFNH7tur70UZU";
     const token = process.env.GROWTHMODE_ACCESS_TOKEN;
 
-    let uploadedImageUrl = null;
-
-    // 2. Upload Image to GHL Media Library
-    if (imageFile) {
-      const mediaFormData = new FormData();
-      mediaFormData.append('file', imageFile);
-
-      const mediaResponse = await fetch('https://services.leadconnectorhq.com/medias/upload-file', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Version': '2021-07-28'
-        },
-        body: mediaFormData
-      });
-
-      if (!mediaResponse.ok) {
-        const mediaError = await mediaResponse.json();
-        return NextResponse.json(
-          { error: 'Failed to upload image to CRM media library', details: mediaError }, 
-          { status: mediaResponse.status }
-        );
-      }
-
-      const mediaData = await mediaResponse.json();
-      uploadedImageUrl = mediaData.url; 
-    }
-
-    // 3. Parse Payload
+    // 1. Parse Payload
     let parsedData = {};
     try {
-      parsedData = JSON.parse(productPayloadStr || "{}");
+      parsedData = JSON.parse(packagePayloadStr || "{}");
     } catch (e) {
-      console.error("Failed to parse product payload", e);
+      console.error("Failed to parse package payload", e);
     }
 
     // Stringify the payload for GHL
     const finalPayloadStr = JSON.stringify(parsedData);
 
-    // 4. Create Record in GHL Custom Object
+    // 2. Create Record in GHL Custom Object
     const endpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records`;
 
     const response = await fetch(endpoint, {
@@ -80,13 +40,8 @@ export async function POST(request) {
       body: JSON.stringify({
         locationId: locationId, 
         properties: {
-          "tool_code": productCode,
-          "data": finalPayloadStr, 
-          ...(uploadedImageUrl && { 
-            "image": [
-              { "url": uploadedImageUrl } 
-            ] 
-          }) 
+          "package_code": packageCode,
+          "data": finalPayloadStr 
         }
       })
     });
@@ -94,7 +49,7 @@ export async function POST(request) {
     if (!response.ok) {
       const errorData = await response.json();
       return NextResponse.json(
-        { error: 'Failed to create product in CRM', details: errorData }, 
+        { error: 'Failed to create package in CRM', details: errorData }, 
         { status: response.status }
       );
     }
@@ -112,11 +67,11 @@ export async function GET(request) {
   try {
     // 1. Extract query parameters from the URL
     const { searchParams } = new URL(request.url);
-    const productCode = searchParams.get('productCode'); 
+    const packageCode = searchParams.get('packageCode'); 
     const page = parseInt(searchParams.get('page')) || 1;    // Default to page 1
     const limit = parseInt(searchParams.get('limit')) || 10; // Default to 10 items
 
-    const customObjectId = "69a6d83eb206eb7c36275bd5"; 
+    const customObjectId = "69bca8aea9a868c2ba27a4a6"; 
     const locationId = "Dm5yFSciFNH7tur70UZU";
     const token = process.env.GROWTHMODE_ACCESS_TOKEN;
 
@@ -126,15 +81,15 @@ export async function GET(request) {
     const searchBody = {
       locationId: locationId,
       page: page,          
-      pageLimit: productCode ? 1 : limit // If searching by code, limit to 1. Otherwise, use our limit.
+      pageLimit: packageCode ? 1 : limit // If searching by code, limit to 1. Otherwise, use our limit.
     };
 
-    if (productCode) {
+    if (packageCode) {
       searchBody.query = [
         {
-          field: "tool_code",
+          field: "package_code",
           operator: "EQUALS",
-          value: productCode
+          value: packageCode
         }
       ];
     }
@@ -152,17 +107,17 @@ export async function GET(request) {
     if (!response.ok) {
       const errorData = await response.json();
       return NextResponse.json(
-        { error: 'Failed to fetch products from CRM', details: errorData }, 
+        { error: 'Failed to fetch packages from CRM', details: errorData }, 
         { status: response.status }
       );
     }
 
     const data = await response.json();
     
-    if (productCode && data.records?.length > 0) {
+    if (packageCode && data.records?.length > 0) {
         return NextResponse.json({ success: true, record: data.records[0] });
-    } else if (productCode && data.records?.length === 0) {
-        return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
+    } else if (packageCode && data.records?.length === 0) {
+        return NextResponse.json({ success: false, error: 'Package not found' }, { status: 404 });
     }
 
     // 3. Return the specific page of records, plus a boolean to help the frontend know if there are more pages
@@ -183,14 +138,14 @@ export async function PATCH(request) {
   try {
     const formData = await request.formData();
     const recordId = formData.get('recordId');
-    const productPayload = formData.get('productPayload');
+    const packagePayload = formData.get('packagePayload');
 
-    if (!recordId || !productPayload) {
+    if (!recordId || !packagePayload) {
       return NextResponse.json({ error: 'Missing required update data' }, { status: 400 });
     }
 
-    const parsedNewData = JSON.parse(productPayload);
-    const customObjectId = "69a6d83eb206eb7c36275bd5";
+    const parsedNewData = JSON.parse(packagePayload);
+    const customObjectId = "69bca8aea9a868c2ba27a4a6";
     const locationId = "Dm5yFSciFNH7tur70UZU";
     const token = process.env.GROWTHMODE_ACCESS_TOKEN;
 
@@ -220,11 +175,7 @@ export async function PATCH(request) {
     // 2. Deep Merge Payload
     const finalPayload = {
       ...existingPayload, 
-      ...parsedNewData,  
-      pricing: {
-        ...existingPayload.pricing,
-        ...parsedNewData.pricing
-      }
+      ...parsedNewData
     };
 
     // 3. Push Update to GoHighLevel
@@ -250,7 +201,7 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Failed to update CRM', details: errorData }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, message: 'Product updated successfully!' });
+    return NextResponse.json({ success: true, message: 'Package updated successfully!' });
 
   } catch (error) {
     console.error("PATCH Error:", error);
@@ -268,7 +219,7 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'Missing CRM record ID' }, { status: 400 });
     }
 
-    const customObjectId = "69a6d83eb206eb7c36275bd5"; 
+    const customObjectId = "69bca8aea9a868c2ba27a4a6"; 
     const locationId = "Dm5yFSciFNH7tur70UZU";
     const token = process.env.GROWTHMODE_ACCESS_TOKEN;
 
@@ -292,7 +243,7 @@ export async function DELETE(request) {
       );
     }
 
-    return NextResponse.json({ success: true, message: 'Product successfully deleted.' });
+    return NextResponse.json({ success: true, message: 'Package successfully deleted.' });
 
   } catch (error) {
     console.error("Integration Delete Error:", error);

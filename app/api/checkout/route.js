@@ -11,44 +11,79 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
     }
 
-    // 1. Check if the cart contains any subscriptions. 
-    // Stripe requires the mode to be 'subscription' if even one recurring item is present.
-    const hasSubscription = cart.some(item => item.package === 'Monthly' || item.package === 'Annual');
+    const lineItems = await Promise.all(cart.map(async (item) => {
+      
+      const uniqueId = item.id || item.slug; 
 
-    // 2. Map your cart items to Stripe's line_items format
-    const lineItems = cart.map(item => {
-      // Build the price data dynamically
-      const priceData = {
-        currency: 'usd',
-        product_data: {
-          name: `${item.name} (${item.package})`,
+      if (!uniqueId) {
+        throw new Error(`Missing unique ID for item: ${item.name}`);
+      }
+
+      // 1. SEARCH OR CREATE PRODUCT
+      const productSearch = await stripe.products.search({
+        query: `metadata['crm_id']:'${uniqueId}'`,
+        limit: 1,
+      });
+
+      let stripeProductId;
+      if (productSearch.data.length > 0) {
+        stripeProductId = productSearch.data[0].id;
+      } else {
+        const newProduct = await stripe.products.create({
+          name: item.name,
           images: item.image ? [item.image] : [],
-        },
-        unit_amount: Math.round(item.price * 100), // Stripe expects cents
-      };
+          metadata: { crm_id: uniqueId },
+        });
+        stripeProductId = newProduct.id;
+      }
 
-      // If it's a subscription package, tell Stripe how often to charge
-      if (item.package === 'Monthly') {
-        priceData.recurring = { interval: 'month' };
-      } else if (item.package === 'Annual') {
-        priceData.recurring = { interval: 'year' };
+      // 2. SEARCH OR CREATE ONE-TIME PRICE
+      const unitAmount = Math.round(item.price * 100);
+      
+      const prices = await stripe.prices.list({
+        product: stripeProductId,
+        active: true,
+      });
+
+      // We look for a price that is NOT recurring and matches the amount
+      const existingPrice = prices.data.find(p => 
+        p.unit_amount === unitAmount && 
+        p.currency === 'usd' && 
+        !p.recurring // Ensure we only pick one-time prices
+      );
+
+      let stripePriceId;
+
+      if (existingPrice) {
+        stripePriceId = existingPrice.id;
+      } else {
+        const newPrice = await stripe.prices.create({
+          product: stripeProductId,
+          unit_amount: unitAmount,
+          currency: 'usd',
+          metadata: {
+            // We keep the package name in metadata for your records, 
+            // even though it won't trigger a subscription.
+            package_type: item.package || 'One-Time' 
+          }
+        });
+        stripePriceId = newPrice.id;
       }
 
       return {
-        price_data: priceData,
-        quantity: 1,
+        price: stripePriceId,
+        quantity: item.quantity || 1,
       };
-    });
+    }));
 
-    // 3. Get the base URL so Stripe knows where to send them back
+    // 3. CREATE CHECKOUT SESSION
     const origin = request.headers.get('origin') || 'http://localhost:3000';
 
-    // 4. Generate the Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
-      mode: hasSubscription ? 'subscription' : 'payment',
-      success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`, // We can build this page later!
+      mode: 'payment', // Changed from dynamic to strictly 'payment'
+      success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`, 
       cancel_url: `${origin}/cart`,
     });
 

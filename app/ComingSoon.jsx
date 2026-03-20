@@ -26,7 +26,8 @@ export default function ShopLandingPage() {
     { 
       icon: Blocks, 
       title: "Detailing Kits", 
-      desc: "Pre-configured templates and components for residential and commercial detailing." 
+      desc: "Pre-configured templates and components for residential and commercial detailing." ,
+      href: "/packages"
     }
   ];
 
@@ -61,13 +62,6 @@ export default function ShopLandingPage() {
             />
           </div>
           
-          {/* Enhanced Launch Badge */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-5 py-2 backdrop-blur-md shadow-[0_0_20px_rgba(212,175,55,0.15)]">
-            <Timer size={16} className="text-[#D4AF37] animate-pulse" />
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#D4AF37]">
-              Official Shop Launching Soon
-            </span>
-          </div>
         </div>
         
         {/* Hero Typography */}

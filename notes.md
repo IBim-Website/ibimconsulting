@@ -12,3 +12,4 @@
 - Product links page.
 - Webhook create a link
 - Add General Enquiry section [https://ibimconsulting.com.au/tool]
+- In packages, we add Monthly, Annual and Floating.

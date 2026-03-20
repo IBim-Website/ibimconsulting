@@ -13,7 +13,7 @@ export default function ToolsPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#020617] text-white font-sans selection:bg-amber-500/30 selection:text-amber-100 pb-24 overflow-hidden relative">
+    <main className="min-h-screen text-white font-sans selection:bg-amber-500/30 selection:text-amber-100 pb-24 overflow-hidden relative">
       
       {/* Blueprint Grid Pattern - Shared globally */}
       <div 
