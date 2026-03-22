@@ -2,21 +2,29 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Trash2, ArrowLeft, ArrowRight, ShoppingCart, ShieldCheck, Zap, Loader2, ExternalLink, Package, LayoutGrid } from 'lucide-react';
+import { Trash2, ArrowLeft, ArrowRight, ShoppingCart, ShieldCheck, Zap, Loader2, ExternalLink, Package, LayoutGrid, Plus, Minus, AlertTriangle } from 'lucide-react';
 import { useCart } from '@/app/CartContext'; 
 
 export default function CartPage() {
-  const { cart, removeFromCart, isMounted } = useCart();
+  const { cart, removeFromCart, updateCartItem, isMounted } = useCart();
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
-  
   const [activeItemId, setActiveItemId] = useState(null);
 
   if (!isMounted) return null;
 
-  const subtotal = cart.reduce((total, item) => total + (item.price || 0), 0);
+  // Calculate subtotal considering item quantities
+  const subtotal = cart.reduce((total, item) => total + ((item.price || 0) * (item.quantity || 1)), 0);
+
+  // --- NEW: STRIPE CONFLICT DETECTION ---
+  const hasMonthly = cart.some(item => item.package?.toLowerCase() === 'monthly');
+  const hasAnnual = cart.some(item => item.package?.toLowerCase() === 'annual');
+  const hasMixedSubscriptionConflict = hasMonthly && hasAnnual;
 
   const handleCheckout = async () => {
+    // Double check just in case
+    if (hasMixedSubscriptionConflict) return; 
+
     setIsCheckoutLoading(true);
     setCheckoutError(null);
     try {
@@ -27,10 +35,34 @@ export default function CartPage() {
       });
       const data = await response.json();
       if (data.url) window.location.href = data.url;
+      else throw new Error(data.message || data.error || "Failed to initialize checkout");
     } catch (error) {
       setCheckoutError(error.message);
       setIsCheckoutLoading(false);
     }
+  };
+
+  const handleQuantityChange = (id, delta) => {
+    const item = cart.find(i => i.id === id);
+    if (!item) return;
+    
+    const newQuantity = Math.max(1, (item.quantity || 1) + delta);
+    updateCartItem(id, { quantity: newQuantity });
+  };
+
+  const handlePackageChange = (id, newPackage) => {
+    const item = cart.find(i => i.id === id);
+    if (!item || !item.pricingOptions) return;
+
+    let newPrice = item.price; 
+    
+    // Read directly from the pricingOptions we passed during addToCart
+    if (newPackage === 'Monthly' && item.pricingOptions.monthly) newPrice = item.pricingOptions.monthly;
+    if (newPackage === 'Annual' && item.pricingOptions.annual) newPrice = item.pricingOptions.annual;
+    if (newPackage === 'One-Time' && item.pricingOptions.oneTime) newPrice = item.pricingOptions.oneTime;
+    if (newPackage === 'Floating' && item.pricingOptions.floating) newPrice = item.pricingOptions.floating;
+
+    updateCartItem(id, { package: newPackage, price: newPrice });
   };
 
   return (
@@ -47,7 +79,6 @@ export default function CartPage() {
         <div className="bg-[#0A1025]/60 border border-blue-900/30 rounded-3xl p-16 flex flex-col items-center justify-center backdrop-blur-xl">
           <ShoppingCart size={40} className="text-cyan-400/50 mb-6" />
           <h2 className="text-2xl font-bold text-white mb-2">Your cart is empty</h2>
-          {/* UPDATED: Two buttons for empty state */}
           <div className="flex flex-wrap justify-center gap-4 mt-6">
             <Link href="/tools">
               <button className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 font-bold transition-all shadow-[0_0_20px_rgba(37,99,235,0.2)]">
@@ -71,6 +102,12 @@ export default function CartPage() {
               const isActive = activeItemId === uniqueKey;
               const categoryLabel = isPackage ? (item.groupType || "Bundle") : (Array.isArray(item.category) ? item.category[0] : item.category);
               
+              const itemQuantity = item.quantity || 1;
+              const prices = item.pricingOptions || {}; 
+
+              // Highlight conflicting items slightly if there is a conflict
+              const isConflictingItem = hasMixedSubscriptionConflict && (item.package === 'Monthly' || item.package === 'Annual');
+
               return (
                 <div 
                   key={uniqueKey}
@@ -78,7 +115,9 @@ export default function CartPage() {
                   className={`group relative flex flex-col bg-[#0A1025]/60 border rounded-3xl p-6 cursor-pointer transition-all duration-300 ${
                     isActive 
                     ? 'border-cyan-500/50 bg-[#0c1328] shadow-[0_0_40px_rgba(34,211,238,0.1)]' 
-                    : 'border-blue-900/40 hover:border-blue-700/50'
+                    : isConflictingItem 
+                      ? 'border-amber-500/40 hover:border-amber-500/70 shadow-[0_0_20px_rgba(245,158,11,0.05)]' 
+                      : 'border-blue-900/40 hover:border-blue-700/50'
                   }`}
                 >
                   <div className="flex flex-col sm:flex-row gap-6">
@@ -99,27 +138,62 @@ export default function CartPage() {
                           <span className="text-[10px] font-bold uppercase tracking-widest text-cyan-400 bg-cyan-400/10 px-2.5 py-1 rounded border border-cyan-400/20">
                             {categoryLabel}
                           </span>
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded border border-amber-400/20">
-                            {item.package || (isPackage ? "Annual" : "One-Time")}
-                          </span>
                           {isPackage && (
                             <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 bg-emerald-400/10 px-2.5 py-1 rounded border border-emerald-400/20">
                               {item.products.length} Tools Included
                             </span>
                           )}
+                          {/* Add a tiny warning badge to the item if it's causing a conflict */}
+                          {isConflictingItem && (
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded border border-amber-400/20 flex items-center gap-1">
+                              <AlertTriangle size={10} /> Conflicting Plan
+                            </span>
+                          )}
                         </div>
-                        <p className="text-2xl font-black text-white">${item.price.toFixed(2)}</p>
+                        <p className="text-2xl font-black text-white">${(item.price * itemQuantity).toFixed(2)}</p>
                       </div>
 
-                      <div className="mt-3">
-                        <h3 className={`text-xl font-bold transition-colors ${isActive ? 'text-cyan-300' : 'text-white'}`}>
-                          {item.name}
-                        </h3>
-                        {isPackage && (
-                           <p className="text-xs text-blue-300/50 mt-1 line-clamp-1">
-                             Includes: {item.products.map(p => p.name || p).join(', ')}
-                           </p>
-                        )}
+                      <div className="mt-3 flex justify-between items-end">
+                        <div>
+                          <h3 className={`text-xl font-bold transition-colors ${isActive ? 'text-cyan-300' : 'text-white'}`}>
+                            {item.name}
+                          </h3>
+                          {isPackage && (
+                             <p className="text-xs text-blue-300/50 mt-1 line-clamp-1">
+                               Includes: {item.products.map(p => p.name || p).join(', ')}
+                             </p>
+                          )}
+                        </div>
+
+                        {/* Controls: Quantity & Type Selection */}
+                        <div className="flex gap-4 items-center" onClick={(e) => e.stopPropagation()}>
+                          
+                          {/* Package Type Dropdown */}
+                          <select 
+                            value={item.package || 'One-Time'}
+                            onChange={(e) => handlePackageChange(item.id, e.target.value)}
+                            className={`bg-[#020617] text-white text-xs border rounded-lg px-3 py-1.5 focus:outline-none focus:border-cyan-500 transition-colors ${
+                              isConflictingItem ? 'border-amber-500/50 text-amber-100' : 'border-blue-900/50'
+                            }`}
+                          >
+                            {prices.monthly && <option value="Monthly">Monthly</option>}
+                            {prices.annual && <option value="Annual">Annual</option>}
+                            {prices.oneTime && <option value="One-Time">One-Time</option>}
+                            {prices.floating && <option value="Floating">Floating</option>}
+                          </select>
+
+                          {/* Quantity Selector */}
+                          <div className="flex items-center gap-2 bg-[#020617] border border-blue-900/50 rounded-lg px-2 py-1">
+                            <button onClick={() => handleQuantityChange(item.id, -1)} className="text-blue-400 hover:text-cyan-400 disabled:opacity-50">
+                              <Minus size={14} />
+                            </button>
+                            <span className="text-xs font-bold text-white w-4 text-center">{itemQuantity}</span>
+                            <button onClick={() => handleQuantityChange(item.id, 1)} className="text-blue-400 hover:text-cyan-400">
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                        </div>
+
                       </div>
 
                       <div className={`mt-4 pt-4 border-t border-blue-900/30 flex items-center transition-all duration-300 ${
@@ -154,7 +228,6 @@ export default function CartPage() {
               );
             })}
 
-            {/* UPDATED: Two shopping links at the bottom of the list */}
             <div className="pt-6 flex flex-wrap gap-6 items-center border-t border-blue-900/20">
               <Link href="/tools" className="inline-flex items-center gap-2 text-sm font-bold text-cyan-400/70 hover:text-cyan-400 transition-all group">
                 <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
@@ -176,10 +249,23 @@ export default function CartPage() {
 
               <div className="space-y-4 mb-8 border-b border-blue-900/50 pb-8 text-sm text-blue-200/60">
                 <div className="flex justify-between items-center">
-                  <span>Subtotal ({cart.length} items)</span>
+                  <span>Subtotal ({cart.reduce((total, item) => total + (item.quantity || 1), 0)} items)</span>
                   <span className="text-white font-medium">${subtotal.toFixed(2)}</span>
                 </div>
               </div>
+
+              {/* NEW: Warning Box for Mixed Subscriptions */}
+              {hasMixedSubscriptionConflict && (
+                <div className="mb-8 p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-3 animate-in fade-in zoom-in-95 duration-300">
+                  <AlertTriangle className="text-amber-400 shrink-0 mt-0.5" size={20} />
+                  <div className="text-sm">
+                    <p className="text-amber-400 font-bold mb-1">Action Required</p>
+                    <p className="text-amber-200/80 leading-relaxed">
+                      You cannot mix Monthly and Annual subscriptions in the same order. Please align them to the same billing cycle or purchase them separately to proceed.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-between items-end mb-10">
                 <span className="text-lg font-bold text-blue-100">Total</span>
@@ -190,13 +276,17 @@ export default function CartPage() {
 
               <button 
                 onClick={handleCheckout}
-                disabled={isCheckoutLoading}
-                className="w-full flex items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-8 py-5 text-sm font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(34,211,238,0.2)] disabled:opacity-50"
+                disabled={isCheckoutLoading || hasMixedSubscriptionConflict}
+                className={`w-full flex items-center justify-center gap-3 rounded-2xl px-8 py-5 text-sm font-black uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(34,211,238,0.2)] 
+                  ${hasMixedSubscriptionConflict 
+                    ? 'bg-blue-900/30 text-blue-500/40 cursor-not-allowed shadow-none' 
+                    : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white disabled:opacity-50'
+                  }`}
               >
                 {isCheckoutLoading ? <Loader2 size={20} className="animate-spin" /> : <>Proceed to Checkout <ArrowRight size={20} /></>}
               </button>
               
-              {checkoutError && <p className="text-red-400 text-xs mt-4 text-center">{checkoutError}</p>}
+              {checkoutError && <p className="text-red-400 text-xs mt-4 text-center bg-red-500/10 py-2 rounded-lg border border-red-500/20">{checkoutError}</p>}
 
               <div className="mt-8 flex items-start gap-3 text-[11px] text-blue-300/30 bg-blue-950/20 p-5 rounded-2xl border border-blue-900/30 leading-relaxed">
                 <ShieldCheck size={20} className="text-cyan-400/50 shrink-0" />

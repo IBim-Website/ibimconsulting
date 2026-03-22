@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Layers, Check, Youtube, Package, X, Search, Loader2, ShoppingCart } from 'lucide-react';
-// 1. Import the useCart hook
 import { useCart } from '@/app/CartContext';
 
 const getEmbedUrl = (url) => {
@@ -17,7 +16,6 @@ const getEmbedUrl = (url) => {
 };
 
 export default function PackagesGrid({ isMounted = true }) {
-  // 2. Initialize Cart Context
   const { addToCart, cart } = useCart();
   
   const [packages, setPackages] = useState([]);
@@ -34,7 +32,6 @@ export default function PackagesGrid({ isMounted = true }) {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Check if current selected bundle is already in cart
   const isInCart = useMemo(() => {
     return selectedBundle && cart.some(item => item.id === selectedBundle.id);
   }, [selectedBundle, cart]);
@@ -63,10 +60,32 @@ export default function PackagesGrid({ isMounted = true }) {
         const mappedPackages = (result.records || []).map(record => {
           let parsedData = {};
           try { parsedData = JSON.parse(record.properties.data || "{}"); } catch (e) {}
+          
+          const pricing = parsedData.pricing || {};
+          const monthly = parseFloat(pricing.monthlyPrice) || 0;
+          const annual = parseFloat(pricing.annualPrice) || 0;
+          const oneTime = parseFloat(pricing.oneTimePrice) || 0;
+          const floating = parseFloat(pricing.floatingPrice) || 0;
+
+          let defaultPrice = 0;
+          let defaultPlan = "One-Time";
+
+          if (oneTime > 0) { defaultPrice = oneTime; defaultPlan = "One-Time"; }
+          else if (annual > 0) { defaultPrice = annual; defaultPlan = "Annual"; }
+          else if (monthly > 0) { defaultPrice = monthly; defaultPlan = "Monthly"; }
+          else if (floating > 0) { defaultPrice = floating; defaultPlan = "Floating"; }
+
           return {
             id: record.id,
             name: parsedData.packageName || "Unnamed Package",
-            price: parseFloat(parsedData.packagePrice || 0),
+            price: defaultPrice,
+            defaultPlan: defaultPlan,
+            pricingOptions: {
+              monthly: monthly > 0 ? monthly : null,
+              annual: annual > 0 ? annual : null,
+              oneTime: oneTime > 0 ? oneTime : null,
+              floating: floating > 0 ? floating : null,
+            },
             groupType: parsedData.groupType || "General",
             products: Array.isArray(parsedData.products) ? parsedData.products : [],
             packageInfo: Array.isArray(parsedData.packageInfo) ? parsedData.packageInfo : [],
@@ -116,6 +135,36 @@ export default function PackagesGrid({ isMounted = true }) {
   const handleViewBundle = (pkg) => {
     setSelectedBundle(pkg);
     fetchProducts();
+  };
+
+  // NEW: Function to handle dynamically changing the price based on the selected plan
+  const updatePackagePlan = (pkgId, newPlan) => {
+    // Update the main grid array
+    setPackages(prevPackages => prevPackages.map(pkg => {
+      if (pkg.id === pkgId) {
+        let newPrice = pkg.price;
+        if (newPlan === 'Monthly') newPrice = pkg.pricingOptions.monthly;
+        if (newPlan === 'Annual') newPrice = pkg.pricingOptions.annual;
+        if (newPlan === 'One-Time') newPrice = pkg.pricingOptions.oneTime;
+        if (newPlan === 'Floating') newPrice = pkg.pricingOptions.floating;
+        
+        return { ...pkg, defaultPlan: newPlan, price: newPrice };
+      }
+      return pkg;
+    }));
+
+    // If the modal is currently open for this specific package, update it there too
+    if (selectedBundle && selectedBundle.id === pkgId) {
+      setSelectedBundle(prev => {
+        let newPrice = prev.price;
+        if (newPlan === 'Monthly') newPrice = prev.pricingOptions.monthly;
+        if (newPlan === 'Annual') newPrice = prev.pricingOptions.annual;
+        if (newPlan === 'One-Time') newPrice = prev.pricingOptions.oneTime;
+        if (newPlan === 'Floating') newPrice = prev.pricingOptions.floating;
+        
+        return { ...prev, defaultPlan: newPlan, price: newPrice };
+      });
+    }
   };
 
   const groupedPackages = useMemo(() => {
@@ -192,14 +241,33 @@ export default function PackagesGrid({ isMounted = true }) {
                     <div className="space-y-2 mb-6 opacity-80">
                       {pkg.products.slice(0, 3).map((prod, i) => (
                         <div key={i} className="flex items-center gap-2 text-xs text-blue-100/70">
-                          <Check size={12} className="text-emerald-500" />
+                          <Check size={12} className="text-emerald-500 shrink-0" />
                           <span className="truncate">{prod.name || prod}</span>
                         </div>
                       ))}
+                      {/* UPDATED: Dynamic text for +X more tools */}
+                      {pkg.products.length > 3 && (
+                        <div className="text-[11px] font-medium text-emerald-500/80 pt-1 pl-1">
+                          + {pkg.products.length - 3} more tools included
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between pt-4 border-t border-emerald-900/30">
-                      <span className="text-lg font-bold text-white">${pkg.price.toFixed(2)}</span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className="text-xl font-bold text-white">${pkg.price.toFixed(2)}</span>
+                        {/* UPDATED: Pricing tier selector dropdown */}
+                        <select 
+                          value={pkg.defaultPlan}
+                          onChange={(e) => updatePackagePlan(pkg.id, e.target.value)}
+                          className="bg-[#020617] text-emerald-400 text-[10px] uppercase font-bold tracking-wider border border-emerald-900/50 rounded-md px-2 py-1 focus:outline-none focus:border-emerald-500 cursor-pointer hover:bg-[#0c1a28] transition-colors"
+                        >
+                          {pkg.pricingOptions.monthly && <option value="Monthly">Monthly</option>}
+                          {pkg.pricingOptions.annual && <option value="Annual">Annual</option>}
+                          {pkg.pricingOptions.oneTime && <option value="One-Time">One-Time</option>}
+                          {pkg.pricingOptions.floating && <option value="Floating">Floating</option>}
+                        </select>
+                      </div>
                       <button 
                         onClick={() => handleViewBundle(pkg)}
                         className="text-xs font-bold uppercase tracking-wider text-emerald-400 hover:text-emerald-300 transition-colors"
@@ -273,17 +341,39 @@ export default function PackagesGrid({ isMounted = true }) {
               )}
             </div>
 
-            {/* Footer - Updated Button Logic */}
+            {/* Footer */}
             <div className="p-6 border-t border-emerald-900/30 bg-emerald-950/20 flex justify-between items-center">
-              <div className="flex flex-col">
-                <span className="text-[10px] uppercase text-emerald-500/60 font-bold">Total Price</span>
-                <span className="text-3xl font-black text-white">${selectedBundle.price.toFixed(2)}</span>
+              <div className="flex flex-col items-start gap-1">
+                <span className="text-[10px] uppercase text-emerald-500/60 font-bold">Select Plan</span>
+                <div className="flex items-baseline gap-3">
+                  <span className="text-3xl font-black text-white">${selectedBundle.price.toFixed(2)}</span>
+                  {/* UPDATED: Dropdown synced directly in the modal footer */}
+                  <select 
+                    value={selectedBundle.defaultPlan}
+                    onChange={(e) => updatePackagePlan(selectedBundle.id, e.target.value)}
+                    className="bg-[#0A1025] text-emerald-400 text-[11px] uppercase font-bold tracking-wider border border-emerald-500/30 rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                  >
+                    {selectedBundle.pricingOptions.monthly && <option value="Monthly">Monthly</option>}
+                    {selectedBundle.pricingOptions.annual && <option value="Annual">Annual</option>}
+                    {selectedBundle.pricingOptions.oneTime && <option value="One-Time">One-Time</option>}
+                    {selectedBundle.pricingOptions.floating && <option value="Floating">Floating</option>}
+                  </select>
+                </div>
               </div>
               
               <button 
                 onClick={() => {
                   if (!isInCart) {
-                    addToCart(selectedBundle);
+                    addToCart({
+                      id: selectedBundle.id,
+                      name: selectedBundle.name,
+                      price: selectedBundle.price,
+                      package: selectedBundle.defaultPlan,
+                      pricingOptions: selectedBundle.pricingOptions,
+                      groupType: selectedBundle.groupType,
+                      products: selectedBundle.products,
+                      slug: selectedBundle.slug
+                    });
                   }
                 }}
                 disabled={isInCart}

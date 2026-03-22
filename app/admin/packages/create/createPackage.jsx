@@ -68,11 +68,15 @@ export default function PackageUploadWizard() {
   const [availableProducts, setAvailableProducts] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
 
+  // UPDATED: Added new pricing fields and removed packagePrice
   const [formData, setFormData] = useState({
     packageName: '', 
     packageCode: '',
     products: [], 
-    packagePrice: '', 
+    monthlyPrice: '', 
+    annualPrice: '', 
+    oneTimePrice: '',
+    floatingPrice: '',
     youtubeLink: '', 
     description: '',
     downloadUrl: '',
@@ -97,7 +101,6 @@ export default function PackageUploadWizard() {
               console.error("Parse error", e);
             }
             
-            // Return an object with both ID and Name instead of just a string
             return {
               id: record.id,
               name: productName
@@ -121,18 +124,14 @@ export default function PackageUploadWizard() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Multi-Select toggling (Updated to handle objects by ID)
   const toggleSelection = (field, item) => {
     setFormData(prev => {
       const list = prev[field] || []; 
-      // Check if the item already exists by comparing IDs
       const exists = list.some(i => i.id === item.id);
       
       if (exists) {
-        // If it exists, filter it out by ID
         return { ...prev, [field]: list.filter(i => i.id !== item.id) };
       } else {
-        // If it doesn't exist, add the whole object to the array
         return { ...prev, [field]: [...list, item] };
       }
     });
@@ -164,10 +163,16 @@ export default function PackageUploadWizard() {
         .map(info => info.trim())
         .filter(info => info.length > 0);
 
+      // UPDATED: Destructured pricing into the payload
       const packagePayload = {
         packageName: formData.packageName,
         products: formData.products, 
-        packagePrice: formData.packagePrice, 
+        pricing: {
+          monthlyPrice: formData.monthlyPrice,
+          annualPrice: formData.annualPrice,
+          oneTimePrice: formData.oneTimePrice,
+          floatingPrice: formData.floatingPrice,
+        },
         youtubeLink: formData.youtubeLink,
         downloadUrl: formData.downloadUrl,
         packageInfo: infoArray,
@@ -193,8 +198,10 @@ export default function PackageUploadWizard() {
       setTimeout(() => {
         setStep(1);
         setStatus({ type: '', message: '' });
+        // UPDATED: Reset new pricing state
         setFormData({
-          packageName: '', packageCode: '', products: [], packagePrice: '', 
+          packageName: '', packageCode: '', products: [], 
+          monthlyPrice: '', annualPrice: '', oneTimePrice: '', floatingPrice: '',
           youtubeLink: '', description: '', downloadUrl: '', packageInfo: '', groupType: ''
         });
       }, 3000); 
@@ -309,7 +316,6 @@ export default function PackageUploadWizard() {
                         <div className="p-4 text-sm text-blue-200/50 text-center">No products found.</div>
                       ) : (
                         availableProducts.map(product => {
-                          // Check if this specific object ID is in our selected array
                           const isSelected = formData.products.some(p => p.id === product.id);
 
                           return (
@@ -318,7 +324,7 @@ export default function PackageUploadWizard() {
                               className="flex items-center gap-3 px-4 py-3 hover:bg-blue-900/40 cursor-pointer transition-colors"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                toggleSelection('products', product); // Pass the whole object!
+                                toggleSelection('products', product); 
                               }}
                             >
                               <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-cyan-500 border-cyan-500 text-[#0A1025]' : 'border-blue-500/50'}`}>
@@ -340,15 +346,31 @@ export default function PackageUploadWizard() {
           {/* STEP 2: PRICING & LINKS */}
           {step === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+              {/* UPDATED: 3-Column Grid for Pricing Options & Links */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
-                <div>
-                  <label className={labelClass}>Annual Package Price</label>
-                  <div className={inputWrapper}>
-                    <DollarSign className={iconClass} size={20} />
-                    <input type="number" step="any" name="packagePrice" value={formData.packagePrice} onChange={handleInputChange} placeholder="0.00" className={inputClass} />
+                {[
+                  { label: 'Monthly Price', name: 'monthlyPrice' },
+                  { label: 'Annual Price', name: 'annualPrice' },
+                  { label: 'One Time Price', name: 'oneTimePrice' },
+                  { label: 'Floating Price', name: 'floatingPrice' }
+                ].map((field) => (
+                  <div key={field.name}>
+                    <label className={labelClass}>{field.label}</label>
+                    <div className={inputWrapper}>
+                      <DollarSign className={iconClass} size={20} />
+                      <input 
+                        type="number" 
+                        step="any" 
+                        name={field.name} 
+                        value={formData[field.name]} 
+                        onChange={handleInputChange} 
+                        placeholder="0.00" 
+                        className={inputClass} 
+                      />
+                    </div>
                   </div>
-                </div>
+                ))}
 
                 <div>
                   <label className={labelClass}>Youtube Link</label>

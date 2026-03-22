@@ -171,17 +171,23 @@ export default function PackageBulkEdit() {
         const flattenedData = data.records.map(record => {
           const props = record.properties || {};
           const payload = JSON.parse(props.data || '{}');
+          
+          // UPDATED: Extract the new pricing object, fallback to old packagePrice if needed
+          const pricing = payload.pricing || {};
 
           return {
             id: record.id,
             stripeProductId: payload.stripeProductId || '',
             packageName: payload.packageName || '',
             description: payload.description || '', 
-            // We store the products as a comma-separated string for easy table-diffing
             products: Array.isArray(payload.products) 
                 ? payload.products.map(p => p.name || p).join(', ') 
                 : '', 
-            packagePrice: payload.packagePrice || '',
+            // Map new pricing fields
+            monthlyPrice: pricing.monthlyPrice || '',
+            annualPrice: pricing.annualPrice || payload.packagePrice || '',
+            oneTimePrice: pricing.oneTimePrice || '',
+            floatingPrice: pricing.floatingPrice || '',
             groupType: payload.groupType || '',
             youtubeLink: payload.youtubeLink || '',
             downloadUrl: payload.downloadUrl || '',
@@ -214,7 +220,6 @@ export default function PackageBulkEdit() {
     const normalize = (val) => {
       if (val === null || val === undefined) return '';
       const num = parseFloat(val);
-      // Don't parse strings that just happen to start with numbers (like product lists)
       if (typeof val === 'string' && isNaN(Number(val))) return val.trim();
       return isNaN(num) ? String(val).trim() : num;
     };
@@ -276,13 +281,18 @@ export default function PackageBulkEdit() {
 
     for (const rowData of rowsToSave) {
       try {
+        // UPDATED: Bundle pricing fields into the pricing object
         const payload = {
           packageName: rowData.packageName,
           description: rowData.description, 
-          // Re-map the comma-separated strings back to arrays for the DB payload
           products: rowData.products.split(',').map(s => s.trim()).filter(Boolean),
           packageInfo: rowData.packageInfo.split(',').map(s => s.trim()).filter(Boolean),
-          packagePrice: rowData.packagePrice,
+          pricing: {
+            monthlyPrice: rowData.monthlyPrice,
+            annualPrice: rowData.annualPrice,
+            oneTimePrice: rowData.oneTimePrice,
+            floatingPrice: rowData.floatingPrice,
+          },
           groupType: rowData.groupType,
           youtubeLink: rowData.youtubeLink, 
           downloadUrl: rowData.downloadUrl
@@ -333,7 +343,6 @@ export default function PackageBulkEdit() {
   const openProductsModal = () => {
     const pkg = packages.find(p => p.id === selectedId);
     if (pkg) {
-      // Convert the string back to an array for the multi-select UI
       const currentProductsArray = pkg.products 
         ? pkg.products.split(',').map(s => s.trim()).filter(Boolean) 
         : [];
@@ -353,7 +362,6 @@ export default function PackageBulkEdit() {
   };
 
   const saveProducts = () => {
-    // Join the array back into a string and save to the row
     handleCellChange(selectedId, 'products', tempProducts.join(', '));
     setIsProductsModalOpen(false);
   };
@@ -436,10 +444,14 @@ export default function PackageBulkEdit() {
             ) : (
               <table className="w-full text-sm border-separate border-spacing-0">
                 <thead>
+                  {/* UPDATED: Added 4 pricing headers */}
                   <tr>
                     <th className={`${thClass} min-w-[300px] sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]`}>Package Name</th>
                     <th className={thClass}>Group Type</th>
+                    <th className={thClass}>Monthly Price</th>
                     <th className={thClass}>Annual Price</th>
+                    <th className={thClass}>One Time Price</th>
+                    <th className={thClass}>Floating Price</th>
                     <th className={thClass}>Package Info</th>
                     <th className={thClass}>Youtube</th>
                     <th className={thClass}>Download</th>
@@ -469,7 +481,13 @@ export default function PackageBulkEdit() {
                           </div>
                         </td>
                         <td className={tdClass}><input className={inputClass} value={row.groupType} onChange={(e) => handleCellChange(row.id, 'groupType', e.target.value)} /></td>
-                        <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.packagePrice} onChange={(e) => handleCellChange(row.id, 'packagePrice', e.target.value)} /></td>
+                        
+                        {/* UPDATED: Added 4 pricing inputs */}
+                        <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.monthlyPrice} onChange={(e) => handleCellChange(row.id, 'monthlyPrice', e.target.value)} /></td>
+                        <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.annualPrice} onChange={(e) => handleCellChange(row.id, 'annualPrice', e.target.value)} /></td>
+                        <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.oneTimePrice} onChange={(e) => handleCellChange(row.id, 'oneTimePrice', e.target.value)} /></td>
+                        <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.floatingPrice} onChange={(e) => handleCellChange(row.id, 'floatingPrice', e.target.value)} /></td>
+                        
                         <td className={tdClass}><input className={inputClass} value={row.packageInfo} placeholder="Comma separated features" onChange={(e) => handleCellChange(row.id, 'packageInfo', e.target.value)} /></td>
                         <td className={tdClass}><input className={inputClass} value={row.youtubeLink} onChange={(e) => handleCellChange(row.id, 'youtubeLink', e.target.value)} /></td>
                         <td className={tdClass}><input className={inputClass} value={row.downloadUrl} onChange={(e) => handleCellChange(row.id, 'downloadUrl', e.target.value)} /></td>

@@ -33,7 +33,9 @@ export function CartProvider({ children }) {
     setCart((prevCart) => {
       // Prevent adding duplicates if it's a one-time digital tool
       if (prevCart.some((item) => item.id === product.id)) return prevCart;
-      return [...prevCart, product];
+      
+      // Ensure the product gets a default quantity of 1 when added
+      return [...prevCart, { quantity: 1, ...product }];
     });
   };
 
@@ -41,10 +43,26 @@ export function CartProvider({ children }) {
     setCart((prevCart) => prevCart.filter((item) => item.id !== productId));
   };
 
+  // NEW: Update specific properties of an item (like quantity or package type/price)
+  const updateCartItem = (productId, updates) => {
+    setCart((prevCart) => 
+      prevCart.map((item) => 
+        item.id === productId ? { ...item, ...updates } : item
+      )
+    );
+  };
+
   const clearCart = () => setCart([]);
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, isMounted }}>
+    <CartContext.Provider value={{ 
+      cart, 
+      addToCart, 
+      removeFromCart, 
+      updateCartItem, // Make sure to export this here!
+      clearCart, 
+      isMounted 
+    }}>
       {children}
     </CartContext.Provider>
   );

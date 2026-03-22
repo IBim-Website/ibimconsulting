@@ -88,9 +88,9 @@ export default function ToolClient({ slug }) {
   const handleAddToCart = () => {
     if (!selectedPricing || !tool) return;
 
-    // Map the selected pricing key to a readable package name for the cart UI
+    // Normalize package names to match your Cart and Stripe logic
     let planName = "Monthly";
-    if (selectedPricing === 'oneTimePrice') planName = "Lifetime";
+    if (selectedPricing === 'oneTimePrice') planName = "One-Time"; // Changed from Lifetime to match Cart/Stripe
     if (selectedPricing === 'annualPrice') planName = "Annual";
 
     const cartItem = {
@@ -100,7 +100,13 @@ export default function ToolClient({ slug }) {
       category: Array.isArray(tool.category) ? tool.category[0] : tool.category,
       package: planName, 
       image: tool.image,
-      slug: slug
+      slug: slug,
+      // Pass the available pricing structure directly to the cart
+      pricingOptions: {
+        monthly: tool.pricing.monthlyPrice ? parseFloat(tool.pricing.monthlyPrice) : null,
+        annual: tool.pricing.annualPrice ? parseFloat(tool.pricing.annualPrice) : null,
+        oneTime: tool.pricing.oneTimePrice ? parseFloat(tool.pricing.oneTimePrice) : null,
+      }
     };
 
     addToCart(cartItem);

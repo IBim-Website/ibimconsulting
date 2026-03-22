@@ -11,15 +11,30 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
     }
 
+    // 1. VALIDATE STRIPE LIMITATIONS
+    // Stripe does not allow mixing different recurring intervals (e.g., Monthly + Annual)
+    const hasMonthly = cart.some(item => item.package?.toLowerCase() === 'monthly');
+    const hasAnnual = cart.some(item => item.package?.toLowerCase() === 'annual');
+
+    if (hasMonthly && hasAnnual) {
+      return NextResponse.json({ 
+        error: 'Mixed Billing Intervals', 
+        message: 'Stripe does not support checking out with both Monthly and Annual subscriptions at the same time. Please process Monthly and Annual items separately.' 
+      }, { status: 400 });
+    }
+
+    // Check if the cart contains any subscriptions to set the correct mode
+    const hasSubscription = hasMonthly || hasAnnual;
+    const checkoutMode = hasSubscription ? 'subscription' : 'payment';
+
     const lineItems = await Promise.all(cart.map(async (item) => {
-      
       const uniqueId = item.id || item.slug; 
 
       if (!uniqueId) {
         throw new Error(`Missing unique ID for item: ${item.name}`);
       }
 
-      // 1. SEARCH OR CREATE PRODUCT
+      // 2. SEARCH OR CREATE PRODUCT
       const productSearch = await stripe.products.search({
         query: `metadata['crm_id']:'${uniqueId}'`,
         limit: 1,
@@ -37,36 +52,45 @@ export async function POST(request) {
         stripeProductId = newProduct.id;
       }
 
-      // 2. SEARCH OR CREATE ONE-TIME PRICE
+      // 3. SEARCH OR CREATE PRICE based on package type
       const unitAmount = Math.round(item.price * 100);
+      const isMonthly = item.package?.toLowerCase() === 'monthly';
+      const isAnnual = item.package?.toLowerCase() === 'annual';
       
       const prices = await stripe.prices.list({
         product: stripeProductId,
         active: true,
       });
 
-      // We look for a price that is NOT recurring and matches the amount
-      const existingPrice = prices.data.find(p => 
-        p.unit_amount === unitAmount && 
-        p.currency === 'usd' && 
-        !p.recurring // Ensure we only pick one-time prices
-      );
+      // Find an existing price that matches the exact amount and interval
+      const existingPrice = prices.data.find(p => {
+        if (p.unit_amount !== unitAmount || p.currency !== 'usd') return false;
+        
+        if (isMonthly) return p.recurring?.interval === 'month';
+        if (isAnnual) return p.recurring?.interval === 'year';
+        return !p.recurring; // One-time or Floating price
+      });
 
       let stripePriceId;
 
       if (existingPrice) {
         stripePriceId = existingPrice.id;
       } else {
-        const newPrice = await stripe.prices.create({
+        // Construct price configuration
+        const priceConfig = {
           product: stripeProductId,
           unit_amount: unitAmount,
           currency: 'usd',
           metadata: {
-            // We keep the package name in metadata for your records, 
-            // even though it won't trigger a subscription.
-            package_type: item.package || 'One-Time' 
+            package_type: item.package || 'One-Time'
           }
-        });
+        };
+
+        // Add recurring data if necessary
+        if (isMonthly) priceConfig.recurring = { interval: 'month' };
+        if (isAnnual) priceConfig.recurring = { interval: 'year' };
+
+        const newPrice = await stripe.prices.create(priceConfig);
         stripePriceId = newPrice.id;
       }
 
@@ -76,13 +100,13 @@ export async function POST(request) {
       };
     }));
 
-    // 3. CREATE CHECKOUT SESSION
+    // 4. CREATE CHECKOUT SESSION
     const origin = request.headers.get('origin') || 'http://localhost:3000';
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
-      mode: 'payment', // Changed from dynamic to strictly 'payment'
+      mode: checkoutMode, // Automatically set to 'payment' or 'subscription'
       success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`, 
       cancel_url: `${origin}/cart`,
     });
