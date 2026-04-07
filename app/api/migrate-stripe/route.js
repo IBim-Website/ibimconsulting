@@ -73,6 +73,7 @@ export async function POST(request) {
         const price = await stripe.prices.create(priceConfig);
         const paymentLink = await stripe.paymentLinks.create({
           line_items: [{ price: price.id, quantity: 1 }],
+          allow_promotion_codes: true,
         });
 
         return paymentLink.url;
