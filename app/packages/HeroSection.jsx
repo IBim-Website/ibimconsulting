@@ -21,7 +21,7 @@ export default function PackagesHero() {
         </div>
 
         {/* Headline */}
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] mb-8 drop-shadow-lg tracking-tight">
+        <h1 className="text-4xl md:text-4xl lg:text-4xl font-black text-white leading-[1.1] mb-8 drop-shadow-lg tracking-tight">
           All The Tools You Need To Build A <br className="hidden md:block" />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-500">
             Profitable Detailing Business

@@ -23,22 +23,24 @@ export default function ToolClient({ slug }) {
   const [activeVideo, setActiveVideo] = useState(null);
   const [selectedPricing, setSelectedPricing] = useState('');
   
-  // NEW: Cart Context and Button State
+  // Cart Context and Button State
   const { addToCart } = useCart();
   const [isAdded, setIsAdded] = useState(false);
 
   useEffect(() => {
     const fetchToolDetails = async () => {
       try {
-        const response = await fetch('/api/products');
+        // Fetch with a higher limit so we don't miss the tool if it's not on page 1
+        const response = await fetch('/api/products?limit=100&status=ACTIVE');
         const result = await response.json();
 
         if (!response.ok) throw new Error(result.error || 'Failed to fetch data');
 
         const fetchedRecords = result.records || [];
 
+        // 1. Find the record using the new Backoffice product_code
         const foundRecord = fetchedRecords.find(record => {
-          const rawToolCode = record.properties.tool_code || "";
+          const rawToolCode = record.product_code || "";
           const recordSlug = rawToolCode.toLowerCase().replace(/[_ ]+/g, '-');
           return recordSlug === slug;
         });
@@ -47,11 +49,10 @@ export default function ToolClient({ slug }) {
           throw new Error("Tool not found");
         }
 
-        let parsedData = {};
-        try {
-          parsedData = JSON.parse(foundRecord.properties.data || "{}");
-        } catch (e) {
-          console.error("Error parsing tool data:", e);
+        // 2. Extract GHL extra payload (already parsed by our backend fix!)
+        let parsedData = foundRecord.extraPayload || {};
+        if (typeof parsedData === 'string') {
+            try { parsedData = JSON.parse(parsedData); } catch (e) {}
         }
 
         const pricingData = parsedData.pricing || {};
@@ -63,13 +64,41 @@ export default function ToolClient({ slug }) {
         
         setSelectedPricing(defaultPlan);
 
+        // 3. Extract Image safely from the new structure
+        let imageUrl = "https://placehold.co/1200x800/020617/3b82f6?text=No+Image";
+        if (foundRecord.image) {
+            if (Array.isArray(foundRecord.image) && foundRecord.image.length > 0) {
+                imageUrl = foundRecord.image[0].url;
+            } else if (foundRecord.image.url) {
+                imageUrl = foundRecord.image.url;
+            } else if (typeof foundRecord.image === 'string') {
+                imageUrl = foundRecord.image;
+            }
+        }
+
+        // 4. Safely extract Description (Checking GHL first, then unpacking Backoffice JSON strings if needed)
+        let finalDesc = parsedData.description;
+        if (!finalDesc && foundRecord.description) {
+            try {
+                const parsedBoDesc = JSON.parse(foundRecord.description);
+                if (Array.isArray(parsedBoDesc) && parsedBoDesc[0]?.Content) {
+                    finalDesc = parsedBoDesc[0].Content.join("");
+                } else {
+                    finalDesc = foundRecord.description;
+                }
+            } catch(e) {
+                finalDesc = foundRecord.description;
+            }
+        }
+
+        // 5. Set Tool State
         setTool({
-          id: foundRecord.id,
-          name: parsedData.productName || "Unnamed Product",
-          description: parsedData.description || "<p>No description available.</p>",
+          id: foundRecord.product_uuid || foundRecord.id || foundRecord.product_code,
+          name: foundRecord.product_name || parsedData.productName || "Unnamed Product",
+          description: finalDesc || "<p>No description available.</p>",
           pricing: pricingData,
           category: parsedData.category || ["Uncategorized"],
-          image: foundRecord.properties.image?.[0]?.url || "https://placehold.co/1200x800/020617/3b82f6?text=No+Image",
+          image: imageUrl,
           youtubeLink: parsedData.links?.youtubeLink || null,
         });
 
@@ -84,13 +113,11 @@ export default function ToolClient({ slug }) {
     if (slug) fetchToolDetails();
   }, [slug]);
 
-  // NEW: Add to Cart Handler
   const handleAddToCart = () => {
     if (!selectedPricing || !tool) return;
 
-    // Normalize package names to match your Cart and Stripe logic
     let planName = "Monthly";
-    if (selectedPricing === 'oneTimePrice') planName = "One-Time"; // Changed from Lifetime to match Cart/Stripe
+    if (selectedPricing === 'oneTimePrice') planName = "One-Time"; 
     if (selectedPricing === 'annualPrice') planName = "Annual";
 
     const cartItem = {
@@ -101,7 +128,6 @@ export default function ToolClient({ slug }) {
       package: planName, 
       image: tool.image,
       slug: slug,
-      // Pass the available pricing structure directly to the cart
       pricingOptions: {
         monthly: tool.pricing.monthlyPrice ? parseFloat(tool.pricing.monthlyPrice) : null,
         annual: tool.pricing.annualPrice ? parseFloat(tool.pricing.annualPrice) : null,
@@ -111,7 +137,6 @@ export default function ToolClient({ slug }) {
 
     addToCart(cartItem);
 
-    // Trigger success state for the button
     setIsAdded(true);
     setTimeout(() => {
       setIsAdded(false);
@@ -233,7 +258,7 @@ export default function ToolClient({ slug }) {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
             
-            {/* LEFT SIDE: Header + Image (Merged) + Action Box */}
+            {/* LEFT SIDE: Header + Image + Action Box */}
             <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4 min-h-0">
               
               <div className="bg-[#0A1025]/80 rounded-2xl border border-blue-900/50 p-5 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] flex flex-col gap-5 shrink-0">
@@ -275,7 +300,7 @@ export default function ToolClient({ slug }) {
                 </div>
               </div>
 
-              {/* Action Box (Pricing Selection & Add to Cart) */}
+              {/* Action Box */}
               <div className="bg-[#0A1025]/40 rounded-2xl border border-blue-900/30 p-5 flex flex-col gap-4 shrink-0">
                 
                 <div className="flex flex-row gap-2">
@@ -346,7 +371,6 @@ export default function ToolClient({ slug }) {
                   )}
                 </div>
 
-                {/* UPDATED: Add to Cart Button with Success State */}
                 <button 
                   onClick={handleAddToCart}
                   disabled={!selectedPricing || isAdded}

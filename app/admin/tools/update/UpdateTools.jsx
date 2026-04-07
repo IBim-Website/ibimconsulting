@@ -11,7 +11,6 @@ const MenuBar = ({ editor }) => {
     return null;
   }
 
-  // Helper for styling active vs inactive buttons
   const getButtonClass = (isActive) => 
     `p-2 rounded-lg transition-colors ${
       isActive 
@@ -46,7 +45,6 @@ const MenuBar = ({ editor }) => {
         <Strikethrough size={18} />
       </button>
       
-      {/* Vertical Separator */}
       <div className="w-[1px] h-6 bg-blue-500/20 mx-2" />
 
       <button
@@ -67,7 +65,7 @@ const MenuBar = ({ editor }) => {
   );
 };
 
-// 2. TipTap Editor Component (Updated)
+// 2. TipTap Editor Component 
 const RichTextEditor = ({ description, onChange }) => {
   const editor = useEditor({
     extensions: [StarterKit],
@@ -78,7 +76,6 @@ const RichTextEditor = ({ description, onChange }) => {
     },
     editorProps: {
       attributes: {
-        // Removed the border/background from here, moved to the wrapper div below
         class: 'prose prose-invert max-w-none min-h-[250px] p-4 focus:outline-none text-blue-50',
       },
     },
@@ -94,7 +91,7 @@ const RichTextEditor = ({ description, onChange }) => {
   );
 };
 
-// 2. Main Bulk Edit Component
+// 3. Main Bulk Edit Component
 export default function ProductBulkEdit() {
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -124,22 +121,50 @@ export default function ProductBulkEdit() {
   const fetchProducts = async (pageToFetch) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/products?page=${pageToFetch}&limit=${itemsPerPage}`);
+      // Fetching all (status=all) so you can see and edit both active and inactive products
+      const response = await fetch(`/api/products?page=${pageToFetch}&limit=${itemsPerPage}&status=all`);
       const data = await response.json();
 
       if (data.success) {
         const flattenedData = data.records.map(record => {
-          const props = record.properties || {};
-          const payload = JSON.parse(props.data || '{}');
-          const pricing = payload.pricing || {};
-          const links = payload.links || {};
+          
+          let parsedData = record.extraPayload || {};
+          if (typeof parsedData === 'string') {
+              try { parsedData = JSON.parse(parsedData); } catch (e) {}
+          }
+
+          const pricing = parsedData.pricing || {};
+          const links = parsedData.links || {};
+
+          let finalDesc = parsedData.description;
+          if (!finalDesc && record.description) {
+              try {
+                  const parsedBoDesc = JSON.parse(record.description);
+                  if (Array.isArray(parsedBoDesc) && parsedBoDesc[0]?.Content) {
+                      finalDesc = parsedBoDesc[0].Content.join("");
+                  } else {
+                      finalDesc = record.description;
+                  }
+              } catch(e) {
+                  finalDesc = record.description;
+              }
+          }
+
+          let categoryStr = '';
+          if (Array.isArray(parsedData.category)) {
+              categoryStr = parsedData.category.join(', ');
+          } else if (parsedData.category) {
+              categoryStr = parsedData.category;
+          }
 
           return {
-            id: record.id,
-            stripeProductId: payload.stripeProductId || '',
-            productName: payload.productName || '',
-            description: payload.description || '', // Added description fetching
-            category: payload.category?.join(', ') || '', 
+            id: record.product_uuid || record.product_code, 
+            productCode: record.product_code || '', 
+            productPrefix: record.product_prefix || '', // <--- REQUIRED BY BACKOFFICE
+            productName: record.product_name || parsedData.productName || '',
+            status: record.status || 'INACTIVE', 
+            description: finalDesc || '', 
+            category: categoryStr, 
             oneTimePrice: pricing.oneTimePrice || '',
             monthlyPrice: pricing.monthlyPrice || '',
             annualPrice: pricing.annualPrice || '',
@@ -183,6 +208,9 @@ export default function ProductBulkEdit() {
 
     const isDifferent = Object.keys(currentProduct).some(key => {
       if (key === 'id') return false; 
+      // Strict check for status changes
+      if (key === 'status') return currentProduct[key] !== originalProduct[key];
+      
       const currentVal = normalize(currentProduct[key]);
       const originalVal = normalize(originalProduct[key]);
       return currentVal !== originalVal;
@@ -205,7 +233,7 @@ export default function ProductBulkEdit() {
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/products?id=${selectedId}&stripeProductId=${productToDelete.stripeProductId}`, {
+      const response = await fetch(`/api/products?id=${productToDelete.id}&productCode=${productToDelete.productCode}`, {
         method: 'DELETE',
       });
       
@@ -240,7 +268,7 @@ export default function ProductBulkEdit() {
       try {
         const payload = {
           productName: rowData.productName,
-          description: rowData.description, // Added description saving
+          description: rowData.description, 
           category: rowData.category.split(',').map(s => s.trim()).filter(Boolean),
           pricing: {
             oneTimePrice: rowData.oneTimePrice,
@@ -256,7 +284,15 @@ export default function ProductBulkEdit() {
         };
 
         const formData = new FormData();
-        formData.append('recordId', rowData.id);
+        formData.append('id', rowData.id); 
+        formData.append('productCode', rowData.productCode); 
+        
+        // Pass Backoffice Fields
+        formData.append('product_prefix', rowData.productPrefix); // <--- REQUIRED ADDITION
+        formData.append('product_name', rowData.productName);
+        formData.append('description', rowData.description);
+        formData.append('status', rowData.status); 
+        
         formData.append('productPayload', JSON.stringify(payload));
 
         const response = await fetch('/api/products', { method: 'PATCH', body: formData });
@@ -321,7 +357,6 @@ export default function ProductBulkEdit() {
                 </div>
               )}
 
-              {/* Action Buttons for Selected Row */}
               {selectedId && (
                 <div className="flex gap-2 animate-in zoom-in-95">
                   <button
@@ -368,6 +403,7 @@ export default function ProductBulkEdit() {
                 <thead>
                   <tr>
                     <th className={`${thClass} min-w-[350px] sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]`}>Product Name</th>
+                    <th className={thClass}>Status</th>
                     <th className={thClass}>Category</th>
                     <th className={thClass}>One Time</th>
                     <th className={thClass}>Monthly</th>
@@ -403,6 +439,18 @@ export default function ProductBulkEdit() {
                             />
                           </div>
                         </td>
+                        
+                        <td className={tdClass}>
+                          <select 
+                            className={`${inputClass} font-bold cursor-pointer transition-colors ${row.status === 'ACTIVE' ? 'text-emerald-400' : 'text-red-400 opacity-80'}`}
+                            value={row.status}
+                            onChange={(e) => handleCellChange(row.id, 'status', e.target.value)}
+                          >
+                            <option value="ACTIVE" className="bg-[#0a0f1c] text-emerald-400">ACTIVE</option>
+                            <option value="INACTIVE" className="bg-[#0a0f1c] text-red-400">INACTIVE</option>
+                          </select>
+                        </td>
+
                         <td className={tdClass}><input className={inputClass} value={row.category} onChange={(e) => handleCellChange(row.id, 'category', e.target.value)} /></td>
                         <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.oneTimePrice} onChange={(e) => handleCellChange(row.id, 'oneTimePrice', e.target.value)} /></td>
                         <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.monthlyPrice} onChange={(e) => handleCellChange(row.id, 'monthlyPrice', e.target.value)} /></td>
@@ -448,7 +496,6 @@ export default function ProductBulkEdit() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#050811]/80 backdrop-blur-sm p-4 animate-in fade-in">
           <div className="bg-[#0c1328] border border-blue-500/30 rounded-2xl w-full max-w-4xl shadow-[0_0_50px_rgba(34,211,238,0.1)] flex flex-col overflow-hidden animate-in zoom-in-95">
             
-            {/* Modal Header */}
             <div className="px-6 py-4 border-b border-blue-500/20 flex justify-between items-center bg-[#0a0f1c]">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <FileEdit className="text-cyan-400" size={20} />
@@ -462,7 +509,6 @@ export default function ProductBulkEdit() {
               </button>
             </div>
 
-            {/* Modal Body (WYSIWYG) */}
             <div className="p-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
               <RichTextEditor 
                 description={tempDescription} 
@@ -470,7 +516,6 @@ export default function ProductBulkEdit() {
               />
             </div>
 
-            {/* Modal Footer */}
             <div className="px-6 py-4 border-t border-blue-500/20 flex justify-end gap-3 bg-[#0a0f1c]">
               <button 
                 onClick={() => setIsDescModalOpen(false)} 

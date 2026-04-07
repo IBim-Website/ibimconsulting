@@ -16,7 +16,7 @@ export default function ToolsTable({ isMounted = true }) {
   // Copy State for UI Feedback
   const [copiedId, setCopiedId] = useState(null);
 
-  // Fetch tools from the CRM
+  // Fetch tools from the API
   useEffect(() => {
     const fetchTools = async () => {
       if (page === 1) setIsLoading(true);
@@ -31,19 +31,17 @@ export default function ToolsTable({ isMounted = true }) {
         const fetchedRecords = result.records || [];
 
         const mappedTools = fetchedRecords.map(record => {
-          let parsedData = {};
-          try {
-            parsedData = JSON.parse(record.properties.data || "{}");
-          } catch (e) {
-            console.error("Error parsing tool data for record:", record.id);
+          let parsedData = record.extraPayload || {};
+          if (typeof parsedData === 'string') {
+              try { parsedData = JSON.parse(parsedData); } catch (e) {}
           }
 
-          const rawToolCode = record.properties.tool_code || "unnamed-tool";
+          const rawToolCode = record.product_code || "unnamed-tool";
           const formattedSlug = rawToolCode.toLowerCase().replace(/[_ ]+/g, '-');
 
           return {
-            id: record.id,
-            name: parsedData.productName || "Unnamed Product",
+            id: record.product_uuid || record.product_code || record.id,
+            name: record.product_name || parsedData.productName || "Unnamed Product",
             toolCode: rawToolCode,
             slug: formattedSlug 
           };
