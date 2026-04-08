@@ -3,7 +3,6 @@ import Stripe from 'stripe';
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-// Add this to your .env file from the Stripe Webhooks dashboard
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET; 
 
 export async function POST(request) {
@@ -25,8 +24,7 @@ export async function POST(request) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
 
-      // Fetch the line items associated with this session
-      // We expand price and product so we can access the metadata you saved earlier
+      // Fetch the line items associated with this session to grab the metadata
       const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
         expand: ['data.price.product', 'data.price'],
       });
@@ -36,24 +34,26 @@ export async function POST(request) {
         const product = item.price.product;
         const price = item.price;
         
-        // Extract metadata saved during checkout creation
         const crmId = product.metadata.crm_id;
-        const licenseType = price.metadata.package_type?.toUpperCase() || 'ONE-TIME';
+        
+        // FORMAT THE LICENSE TYPE SAFELY
+        // Grabs the metadata, defaults to 'ONE_TIME', converts to uppercase, and replaces dashes/spaces with underscores.
+        // e.g., "One-Time" -> "ONE_TIME", "Floating" -> "FLOATING", "Monthly" -> "MONTHLY"
+        const rawPackage = price.metadata.package_type || 'ONE_TIME';
+        const licenseType = rawPackage.toUpperCase().replace(/[- ]/g, '_');
 
-        // Determine if it is a PACKAGE or PRODUCT. 
-        // Adjust this logic if you have a more specific way to differentiate them.
+        // Determine if it is a PACKAGE or PRODUCT.
         const isPackage = crmId?.toString().includes('pkg') || product.name.toLowerCase().includes('package');
         const itemType = isPackage ? 'PACKAGE' : 'PRODUCT';
 
         const mappedItem = {
-          license_type: licenseType,
+          license_type: licenseType, 
           type: itemType,
           quantity: item.quantity,
-          unit_price: price.unit_amount / 100, // Convert from cents to dollars
-          total_price: item.amount_total / 100, // Convert from cents to dollars
+          unit_price: price.unit_amount / 100, 
+          total_price: item.amount_total / 100, 
         };
 
-        // Attach the correct ID key based on the type
         if (itemType === 'PACKAGE') {
           mappedItem.package_id = crmId;
         } else {
@@ -63,15 +63,18 @@ export async function POST(request) {
         return mappedItem;
       });
 
+      // Generate a unique integer for the required order_id field using a Unix timestamp
+      const uniqueOrderId = Math.floor(Date.now() / 1000);
+
       // Format the final payload for the backoffice API
       const apiPayload = {
         order_info: {
-          order_id: null, // Depending on your backend, you may leave this null/omitted so the DB generates it
+          order_id: uniqueOrderId, // Satisfies the "Order id is required" rule
           type: "WEBSITE",
-          source: "STRIPE", // You can hardcode FACEBOOK or track it via session metadata if needed
-          order_amount: session.amount_total / 100, // Convert from cents
-          order_number: session.id, // Using the Stripe session ID as the unique order number
-          date: new Date(session.created * 1000).toISOString().split('T')[0] // Format: YYYY-MM-DD
+          source: "STRIPE",
+          order_amount: Number((session.amount_total / 100).toFixed(2)), 
+          order_number: session.id, // Using the Stripe session ID as the readable order number
+          date: new Date(session.created * 1000).toISOString().split('T')[0] 
         },
         customer_info: {
           name: session.customer_details?.name || "Unknown",
@@ -88,23 +91,36 @@ export async function POST(request) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.BACKOFFICE_API_KEY}` // Add if your API is secured
+          // 'Authorization': `Bearer ${process.env.BACKOFFICE_API_KEY}` // Uncomment if needed
         },
         body: JSON.stringify(apiPayload),
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        console.error("Backoffice API Error:", errorData);
-        // We still return 200 to Stripe so it doesn't retry the webhook endlessly,
-        // but you might want to log this to an error tracking service (like Sentry).
-        return NextResponse.json({ received: true, warning: 'Failed to send to backoffice' });
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          errorData = await response.text();
+        }
+
+        console.error(`❌ Backoffice API Error [Status ${response.status}]:`, JSON.stringify(errorData));
+
+        return NextResponse.json({ 
+          received: true, 
+          warning: 'Failed to send to backoffice',
+          debug_info: {
+            backoffice_status: response.status,
+            backoffice_error: errorData,
+            payload_sent: apiPayload
+          }
+        });
       }
 
-      console.log("Order successfully created in Backoffice!");
+      const successData = await response.json();
+      console.log("✅ Order successfully created in Backoffice:", successData);
     }
 
-    // Return a 200 response to acknowledge receipt of the event
     return NextResponse.json({ received: true });
 
   } catch (error) {
