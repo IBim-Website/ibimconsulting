@@ -116,7 +116,7 @@ export default function PackageBulkEdit() {
 
   // Products Modal States
   const [isProductsModalOpen, setIsProductsModalOpen] = useState(false);
-  const [tempProducts, setTempProducts] = useState([]);
+  const [tempProducts, setTempProducts] = useState([]); // Stores product_codes array
   const [availableProducts, setAvailableProducts] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
 
@@ -134,19 +134,16 @@ export default function PackageBulkEdit() {
   useEffect(() => {
     const fetchProductsList = async () => {
       try {
-        const res = await fetch('/api/products?limit=100');
+        const res = await fetch('/api/products?limit=100&status=ACTIVE');
         const data = await res.json();
         
         if (data.success && data.records) {
           const fetchedProducts = data.records.map(record => {
-            let productName = record.properties.tool_code;
-            try {
-              const parsedData = JSON.parse(record.properties.data || "{}");
-              productName = parsedData.productName || productName;
-            } catch (e) {
-              console.error("Parse error", e);
-            }
-            return { id: record.id, name: productName };
+            return {
+              id: record.product_uuid || record.product_code, // Ensures unique key
+              name: record.product_name || "Unnamed Product", // For UI display
+              code: record.product_code                       // Backend code mapping
+            };
           }).filter(Boolean); 
           
           setAvailableProducts(fetchedProducts);
@@ -169,29 +166,30 @@ export default function PackageBulkEdit() {
 
       if (data.success) {
         const flattenedData = data.records.map(record => {
-          const props = record.properties || {};
-          const payload = JSON.parse(props.data || '{}');
-          
-          // UPDATED: Extract the new pricing object, fallback to old packagePrice if needed
-          const pricing = payload.pricing || {};
+          // GHL extra data is now spread directly onto the record
+          const pricing = record.pricing || {};
 
           return {
-            id: record.id,
-            stripeProductId: payload.stripeProductId || '',
-            packageName: payload.packageName || '',
-            description: payload.description || '', 
-            products: Array.isArray(payload.products) 
-                ? payload.products.map(p => p.name || p).join(', ') 
-                : '', 
-            // Map new pricing fields
+            id: record.id, // Backoffice ID
+            _ghlRecordId: record._ghlRecordId || '', // GHL ID for updates/deletes
+            
+            packageName: record.package_name || record.packageName || '',
+            packageCode: record.package_code || '',
+            status: record.status || 'AVAILABLE',
+            exclusivePackage: record.exclusive_package || 'YES',
+            productCodes: Array.isArray(record.product_codes) ? record.product_codes : [],
+            description: record.description || '', 
+
+            // Nested Pricing Data
             monthlyPrice: pricing.monthlyPrice || '',
-            annualPrice: pricing.annualPrice || payload.packagePrice || '',
+            annualPrice: pricing.annualPrice || record.packagePrice || '',
             oneTimePrice: pricing.oneTimePrice || '',
             floatingPrice: pricing.floatingPrice || '',
-            groupType: payload.groupType || '',
-            youtubeLink: payload.youtubeLink || '',
-            downloadUrl: payload.downloadUrl || '',
-            packageInfo: Array.isArray(payload.packageInfo) ? payload.packageInfo.join(', ') : '',
+            
+            groupType: record.groupType || '',
+            youtubeLink: record.youtubeLink || '',
+            downloadUrl: record.downloadUrl || '',
+            packageInfo: Array.isArray(record.packageInfo) ? record.packageInfo.join(', ') : '',
           };
         });
         
@@ -219,6 +217,7 @@ export default function PackageBulkEdit() {
 
     const normalize = (val) => {
       if (val === null || val === undefined) return '';
+      if (Array.isArray(val)) return [...val].sort().join(','); // Handle array comparisons properly
       const num = parseFloat(val);
       if (typeof val === 'string' && isNaN(Number(val))) return val.trim();
       return isNaN(num) ? String(val).trim() : num;
@@ -248,7 +247,8 @@ export default function PackageBulkEdit() {
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/packages?id=${selectedId}&stripeProductId=${packageToDelete.stripeProductId}`, {
+      // The backend expects the GHL record ID for deletion
+      const response = await fetch(`/api/packages?id=${packageToDelete._ghlRecordId}`, {
         method: 'DELETE',
       });
       
@@ -281,25 +281,31 @@ export default function PackageBulkEdit() {
 
     for (const rowData of rowsToSave) {
       try {
-        // UPDATED: Bundle pricing fields into the pricing object
         const payload = {
-          packageName: rowData.packageName,
-          description: rowData.description, 
-          products: rowData.products.split(',').map(s => s.trim()).filter(Boolean),
-          packageInfo: rowData.packageInfo.split(',').map(s => s.trim()).filter(Boolean),
+          // Primary Backoffice Fields
+          id: rowData.id,
+          package_name: rowData.packageName,
+          package_code: rowData.packageCode,
+          product_codes: rowData.productCodes,
+          status: rowData.status,
+          exclusive_package: rowData.exclusivePackage,
+          
+          // GHL Extra Fields
           pricing: {
             monthlyPrice: rowData.monthlyPrice,
             annualPrice: rowData.annualPrice,
             oneTimePrice: rowData.oneTimePrice,
             floatingPrice: rowData.floatingPrice,
           },
+          description: rowData.description, 
+          packageInfo: typeof rowData.packageInfo === 'string' ? rowData.packageInfo.split(',').map(s => s.trim()).filter(Boolean) : rowData.packageInfo,
           groupType: rowData.groupType,
           youtubeLink: rowData.youtubeLink, 
           downloadUrl: rowData.downloadUrl
         };
 
         const formData = new FormData();
-        formData.append('recordId', rowData.id);
+        formData.append('recordId', rowData._ghlRecordId || ''); // Pass GHL ID to trigger CRM update
         formData.append('packagePayload', JSON.stringify(payload));
 
         const response = await fetch('/api/packages', { method: 'PATCH', body: formData });
@@ -343,29 +349,25 @@ export default function PackageBulkEdit() {
   const openProductsModal = () => {
     const pkg = packages.find(p => p.id === selectedId);
     if (pkg) {
-      const currentProductsArray = pkg.products 
-        ? pkg.products.split(',').map(s => s.trim()).filter(Boolean) 
-        : [];
-      setTempProducts(currentProductsArray);
+      setTempProducts([...pkg.productCodes]); // Load the codes array
       setIsProductsModalOpen(true);
     }
   };
 
-  const toggleProductSelection = (productName) => {
+  const toggleProductSelection = (productCode) => {
     setTempProducts(prev => {
-      if (prev.includes(productName)) {
-        return prev.filter(p => p !== productName);
+      if (prev.includes(productCode)) {
+        return prev.filter(code => code !== productCode);
       } else {
-        return [...prev, productName];
+        return [...prev, productCode];
       }
     });
   };
 
   const saveProducts = () => {
-    handleCellChange(selectedId, 'products', tempProducts.join(', '));
+    handleCellChange(selectedId, 'productCodes', tempProducts);
     setIsProductsModalOpen(false);
   };
-
 
   const thClass = "px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-emerald-400/80 whitespace-nowrap bg-[#0a0f1c] sticky top-0 z-10 border-b border-blue-500/20";
   const tdClass = "border-b border-blue-500/10 whitespace-nowrap";
@@ -444,7 +446,6 @@ export default function PackageBulkEdit() {
             ) : (
               <table className="w-full text-sm border-separate border-spacing-0">
                 <thead>
-                  {/* UPDATED: Added 4 pricing headers */}
                   <tr>
                     <th className={`${thClass} min-w-[300px] sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]`}>Package Name</th>
                     <th className={thClass}>Group Type</th>
@@ -481,13 +482,10 @@ export default function PackageBulkEdit() {
                           </div>
                         </td>
                         <td className={tdClass}><input className={inputClass} value={row.groupType} onChange={(e) => handleCellChange(row.id, 'groupType', e.target.value)} /></td>
-                        
-                        {/* UPDATED: Added 4 pricing inputs */}
                         <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.monthlyPrice} onChange={(e) => handleCellChange(row.id, 'monthlyPrice', e.target.value)} /></td>
                         <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.annualPrice} onChange={(e) => handleCellChange(row.id, 'annualPrice', e.target.value)} /></td>
                         <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.oneTimePrice} onChange={(e) => handleCellChange(row.id, 'oneTimePrice', e.target.value)} /></td>
                         <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.floatingPrice} onChange={(e) => handleCellChange(row.id, 'floatingPrice', e.target.value)} /></td>
-                        
                         <td className={tdClass}><input className={inputClass} value={row.packageInfo} placeholder="Comma separated features" onChange={(e) => handleCellChange(row.id, 'packageInfo', e.target.value)} /></td>
                         <td className={tdClass}><input className={inputClass} value={row.youtubeLink} onChange={(e) => handleCellChange(row.id, 'youtubeLink', e.target.value)} /></td>
                         <td className={tdClass}><input className={inputClass} value={row.downloadUrl} onChange={(e) => handleCellChange(row.id, 'downloadUrl', e.target.value)} /></td>
@@ -553,11 +551,11 @@ export default function PackageBulkEdit() {
               ) : (
                 <div className="flex flex-col gap-2">
                   {availableProducts.map(product => {
-                    const isSelected = tempProducts.includes(product.name);
+                    const isSelected = tempProducts.includes(product.code);
                     return (
                       <div 
                         key={product.id}
-                        onClick={() => toggleProductSelection(product.name)}
+                        onClick={() => toggleProductSelection(product.code)}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all border ${
                           isSelected 
                             ? 'bg-emerald-500/10 border-emerald-500/30' 

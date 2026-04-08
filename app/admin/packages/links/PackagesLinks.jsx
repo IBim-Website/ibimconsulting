@@ -16,7 +16,7 @@ export default function PackagesTable({ isMounted = true }) {
   // Copy State for UI Feedback
   const [copiedId, setCopiedId] = useState(null);
 
-  // Fetch packages from the CRM
+  // Fetch packages from the CRM/Backoffice
   useEffect(() => {
     const fetchPackages = async () => {
       if (page === 1) setIsLoading(true);
@@ -31,19 +31,17 @@ export default function PackagesTable({ isMounted = true }) {
         const fetchedRecords = result.records || [];
 
         const mappedPackages = fetchedRecords.map(record => {
-          let parsedData = {};
-          try {
-            parsedData = JSON.parse(record.properties.data || "{}");
-          } catch (e) {
-            console.error("Error parsing package data for record:", record.id);
-          }
-
-          const rawPackageCode = record.properties.package_code || "unnamed-package";
+          // Because our backend route.js now merges Backoffice and GHL data,
+          // we can just access the properties directly off the record object.
+          const rawPackageCode = record.package_code || "unnamed-package";
           const formattedSlug = rawPackageCode.toLowerCase().replace(/[_ ]+/g, '-');
+          
+          // Fallback to GHL packageName if Backoffice package_name happens to be missing
+          const displayName = record.package_name || record.packageName || "Unnamed Package";
 
           return {
             id: record.id,
-            name: parsedData.packageName || "Unnamed Package",
+            name: displayName,
             packageCode: rawPackageCode,
             slug: formattedSlug 
           };

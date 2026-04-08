@@ -68,14 +68,14 @@ export default function ProductUploadWizard() {
   const [openDropdown, setOpenDropdown] = useState(null); 
 
   const [formData, setFormData] = useState({
-    category: [],     // Updated to Array for multi-select
-    subCategory: [],  // Updated to Array for multi-select
+    category: [],     
+    subCategory: [],  
     productName: '', annualPrice: '', oneTimePrice: '',
     monthlyPrice: '', singleSystemPrice: '', actualAnnualPrice: '', actualOneTimePrice: '',
     actualMonthlyPrice: '', actualSingleSystemPrice: '', youtubeLink: '', productCode: '',
     downloadUrl: '', description: '',
   });
-  
+
   const [imageFile, setImageFile] = useState(null);
 
   const handleInputChange = (e) => {
@@ -83,10 +83,9 @@ export default function ProductUploadWizard() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // New function to handle Multi-Select toggling
   const toggleSelection = (field, item) => {
     setFormData(prev => {
-      const list = prev[field] || []; // Added the || [] fallback here
+      const list = prev[field] || []; 
       if (list.includes(item)) {
         return { ...prev, [field]: list.filter(i => i !== item) };
       } else {
@@ -129,13 +128,23 @@ export default function ProductUploadWizard() {
 
     try {
       const submitData = new FormData();
-      submitData.append('productCode', formData.productCode);
+      
+      // 1. CORE BACKOFFICE FIELDS (Sent at the root of FormData for the Backend)
+      submitData.append('product_name', formData.productName);
+      submitData.append('productCode', formData.productCode); 
+      // Auto-generate a generic prefix for Backoffice if none exists
+      submitData.append('product_prefix', formData.productCode.substring(0, 4).toUpperCase());
+      submitData.append('description', formData.description);
+      submitData.append('status', 'ACTIVE');
+
+      // 2. IMAGE UPLOAD
       if (imageFile) submitData.append('image', imageFile);
 
+      // 3. GHL EXTRA PAYLOAD (Category, Pricing, Links)
       const productPayload = {
         productName: formData.productName,
-        category: formData.category,       // Array of strings
-        subCategory: formData.subCategory, // Array of strings
+        category: formData.category,       
+        subCategory: formData.subCategory, 
         pricing: {
           annualPrice: formData.annualPrice, oneTimePrice: formData.oneTimePrice,
           monthlyPrice: formData.monthlyPrice, singleSystemPrice: formData.singleSystemPrice,
@@ -148,15 +157,12 @@ export default function ProductUploadWizard() {
       
       submitData.append('productPayload', JSON.stringify(productPayload));
 
+      // 4. POST TO NEXT.JS API (Which handles BO -> GHL sequence)
       const response = await fetch('/api/products', { method: 'POST', body: submitData });
       const result = await response.json();
 
       if (!response.ok) {
-        const isDuplicate = result.details?.errors?.some(err => err.errorCode === 'primary_property_conflict');
-        if (isDuplicate) {
-          throw new Error(`The Product Code "${formData.productCode}" already exists. Please use a unique code.`);
-        }
-        throw new Error(result.details?.message || result.error || 'Failed to upload product');
+        throw new Error(result.error || result.details?.message || 'Failed to upload product');
       }
 
       setStatus({ type: 'success', message: 'Product successfully added to the database!' });
