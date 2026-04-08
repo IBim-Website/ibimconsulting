@@ -27,6 +27,8 @@ export async function POST(request) {
     const hasSubscription = hasMonthly || hasAnnual;
     const checkoutMode = hasSubscription ? 'subscription' : 'payment';
 
+    console.log(cart)
+
     const lineItems = await Promise.all(cart.map(async (item) => {
       const uniqueId = item.id || item.slug; 
 
@@ -102,6 +104,8 @@ export async function POST(request) {
 
     // 4. CREATE CHECKOUT SESSION
     const origin = request.headers.get('origin') || 'http://localhost:3000';
+
+    console.log(lineItems)
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],

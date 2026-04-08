@@ -153,7 +153,7 @@ export default function AdminDashboard() {
               </Link>
 
               {/* Package Directory */}
-              <Link href="/admin/packages/links" className="group block">
+              {/* <Link href="/admin/packages/links" className="group block">
                 <div className="flex items-center gap-5 p-5 rounded-2xl bg-blue-950/20 border border-blue-800/30 hover:bg-blue-900/40 hover:border-purple-500/50 hover:shadow-[0_10px_30px_-10px_rgba(168,85,247,0.15)] transition-all duration-300 group-hover:-translate-y-1">
                   <div className="p-3 rounded-xl bg-black/30 text-emerald-600 group-hover:text-purple-400 group-hover:bg-purple-950/50 transition-colors">
                     <LinkIcon size={24} />
@@ -164,7 +164,7 @@ export default function AdminDashboard() {
                   </div>
                   <ChevronRight size={20} className="text-blue-500/30 group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
                 </div>
-              </Link>
+              </Link> */}
             </div>
           </div>
         </div>

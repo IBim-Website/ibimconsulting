@@ -47,6 +47,7 @@ export default function PackagesGrid({ isMounted = true }) {
     };
   }, [selectedBundle, activeVideo]);
 
+  // FETCH PACKAGES - Updated to use merged API format
   useEffect(() => {
     const fetchPackages = async () => {
       if (page === 1) setIsLoading(true);
@@ -58,10 +59,8 @@ export default function PackagesGrid({ isMounted = true }) {
         if (!response.ok) throw new Error(result.error || 'Failed to fetch packages');
 
         const mappedPackages = (result.records || []).map(record => {
-          let parsedData = {};
-          try { parsedData = JSON.parse(record.properties.data || "{}"); } catch (e) {}
-          
-          const pricing = parsedData.pricing || {};
+          // Data is now pre-merged from the API, no JSON.parse needed
+          const pricing = record.pricing || {};
           const monthly = parseFloat(pricing.monthlyPrice) || 0;
           const annual = parseFloat(pricing.annualPrice) || 0;
           const oneTime = parseFloat(pricing.oneTimePrice) || 0;
@@ -77,7 +76,7 @@ export default function PackagesGrid({ isMounted = true }) {
 
           return {
             id: record.id,
-            name: parsedData.packageName || "Unnamed Package",
+            name: record.package_name || record.packageName || "Unnamed Package",
             price: defaultPrice,
             defaultPlan: defaultPlan,
             pricingOptions: {
@@ -86,11 +85,14 @@ export default function PackagesGrid({ isMounted = true }) {
               oneTime: oneTime > 0 ? oneTime : null,
               floating: floating > 0 ? floating : null,
             },
-            groupType: parsedData.groupType || "General",
-            products: Array.isArray(parsedData.products) ? parsedData.products : [],
-            packageInfo: Array.isArray(parsedData.packageInfo) ? parsedData.packageInfo : [],
-            youtubeLink: parsedData.youtubeLink || null,
-            slug: (record.properties.package_code || "").toLowerCase().replace(/[_ ]+/g, '-')
+            groupType: record.groupType || "General",
+            // Uses Backoffice product_codes array
+            products: Array.isArray(record.product_codes) ? record.product_codes : [],
+            packageInfo: Array.isArray(record.packageInfo) 
+              ? record.packageInfo 
+              : (typeof record.packageInfo === 'string' ? record.packageInfo.split(',').map(s=>s.trim()) : []),
+            youtubeLink: record.youtubeLink || null,
+            slug: (record.package_code || "unnamed").toLowerCase().replace(/[_ ]+/g, '-')
           };
         });
 
@@ -106,21 +108,20 @@ export default function PackagesGrid({ isMounted = true }) {
     fetchPackages();
   }, [page]);
 
+  // FETCH PRODUCTS - Updated to map Backoffice product response format
   const fetchProducts = async () => {
     if (allProducts.length > 0) return;
     setIsProductsLoading(true);
     try {
-      const response = await fetch('/api/products?limit=100');
+      const response = await fetch('/api/products?limit=100&status=ACTIVE');
       const result = await response.json();
-      if (result.success) {
+      if (result.success && result.records) {
         const mapped = result.records.map(r => {
-          let pData = {};
-          try { pData = JSON.parse(r.properties.data || "{}"); } catch(e){}
           return {
-            id: r.id,
-            toolCode: r.properties.tool_code,
-            name: pData.productName || "Unknown Tool",
-            image: r.properties.image?.[0]?.url || null,
+            id: r.product_uuid || r.product_code || r.id,
+            toolCode: r.product_code,
+            name: r.product_name || "Unknown Tool",
+            image: r.image?.[0]?.url || null,
           };
         });
         setAllProducts(mapped);
@@ -137,9 +138,7 @@ export default function PackagesGrid({ isMounted = true }) {
     fetchProducts();
   };
 
-  // NEW: Function to handle dynamically changing the price based on the selected plan
   const updatePackagePlan = (pkgId, newPlan) => {
-    // Update the main grid array
     setPackages(prevPackages => prevPackages.map(pkg => {
       if (pkg.id === pkgId) {
         let newPrice = pkg.price;
@@ -153,7 +152,6 @@ export default function PackagesGrid({ isMounted = true }) {
       return pkg;
     }));
 
-    // If the modal is currently open for this specific package, update it there too
     if (selectedBundle && selectedBundle.id === pkgId) {
       setSelectedBundle(prev => {
         let newPrice = prev.price;
@@ -181,10 +179,10 @@ export default function PackagesGrid({ isMounted = true }) {
 
   const bundleItems = useMemo(() => {
     if (!selectedBundle || allProducts.length === 0) return [];
+    // Safely check against both toolCode and name for legacy support
     return allProducts.filter(product => 
       selectedBundle.products.some(p => 
-        (typeof p === 'string' && (p === product.toolCode || p === product.name)) ||
-        (p.tool_code === product.toolCode || p.name === product.name)
+        p === product.toolCode || p === product.name
       )
     );
   }, [selectedBundle, allProducts]);
@@ -206,6 +204,14 @@ export default function PackagesGrid({ isMounted = true }) {
           />
         </div>
       </div>
+
+      {/* ERROR STATE */}
+      {error && !isLoading && (
+        <div className="py-6 mb-8 flex flex-col items-center justify-center text-red-400 bg-red-950/20 rounded-2xl border border-red-900/40 backdrop-blur-sm">
+          <p className="font-medium">Failed to load packages.</p>
+          <p className="text-sm opacity-60 mt-1">{error}</p>
+        </div>
+      )}
 
       {/* LOADING STATE */}
       {isLoading && page === 1 ? (
@@ -242,10 +248,9 @@ export default function PackagesGrid({ isMounted = true }) {
                       {pkg.products.slice(0, 3).map((prod, i) => (
                         <div key={i} className="flex items-center gap-2 text-xs text-blue-100/70">
                           <Check size={12} className="text-emerald-500 shrink-0" />
-                          <span className="truncate">{prod.name || prod}</span>
+                          <span className="truncate">{prod}</span>
                         </div>
                       ))}
-                      {/* UPDATED: Dynamic text for +X more tools */}
                       {pkg.products.length > 3 && (
                         <div className="text-[11px] font-medium text-emerald-500/80 pt-1 pl-1">
                           + {pkg.products.length - 3} more tools included
@@ -256,7 +261,6 @@ export default function PackagesGrid({ isMounted = true }) {
                     <div className="flex items-center justify-between pt-4 border-t border-emerald-900/30">
                       <div className="flex flex-col gap-1 items-start">
                         <span className="text-xl font-bold text-white">${pkg.price.toFixed(2)}</span>
-                        {/* UPDATED: Pricing tier selector dropdown */}
                         <select 
                           value={pkg.defaultPlan}
                           onChange={(e) => updatePackagePlan(pkg.id, e.target.value)}
@@ -347,7 +351,6 @@ export default function PackagesGrid({ isMounted = true }) {
                 <span className="text-[10px] uppercase text-emerald-500/60 font-bold">Select Plan</span>
                 <div className="flex items-baseline gap-3">
                   <span className="text-3xl font-black text-white">${selectedBundle.price.toFixed(2)}</span>
-                  {/* UPDATED: Dropdown synced directly in the modal footer */}
                   <select 
                     value={selectedBundle.defaultPlan}
                     onChange={(e) => updatePackagePlan(selectedBundle.id, e.target.value)}

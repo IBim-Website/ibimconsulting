@@ -7,7 +7,7 @@ import {
   Folder, Layers, Box, DollarSign, 
   Youtube, Link as LinkIcon, FileCode2, ChevronRight, 
   ChevronLeft, CheckCircle2, List, ListOrdered, Bold, 
-  Italic, Strikethrough, X, Check, Info, Users
+  Italic, Strikethrough, X, Check, Info, Users, Activity, Star
 } from 'lucide-react';
 
 // --- TIPTAP EDITOR COMPONENT ---
@@ -68,11 +68,12 @@ export default function PackageUploadWizard() {
   const [availableProducts, setAvailableProducts] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
 
-  // UPDATED: Added new pricing fields and removed packagePrice
   const [formData, setFormData] = useState({
     packageName: '', 
     packageCode: '',
     products: [], 
+    exclusivePackage: 'YES',
+    packageStatus: 'AVAILABLE',
     monthlyPrice: '', 
     annualPrice: '', 
     oneTimePrice: '',
@@ -88,22 +89,16 @@ export default function PackageUploadWizard() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('/api/products?limit=100');
+        // UPDATED: Added &status=ACTIVE to the API call
+        const res = await fetch('/api/products?limit=100&status=ACTIVE');
         const data = await res.json();
         
         if (data.success && data.records) {
           const fetchedProducts = data.records.map(record => {
-            let productName = record.properties.tool_code;
-            try {
-              const parsedData = JSON.parse(record.properties.data || "{}");
-              productName = parsedData.productName || productName;
-            } catch (e) {
-              console.error("Parse error", e);
-            }
-            
             return {
-              id: record.id,
-              name: productName
+              id: record.product_uuid || record.product_code, // Ensures unique key for React
+              name: record.product_name || "Unnamed Product", // Display name in UI
+              code: record.product_code                       // Code to send to backend
             };
           }).filter(Boolean); 
           
@@ -163,10 +158,15 @@ export default function PackageUploadWizard() {
         .map(info => info.trim())
         .filter(info => info.length > 0);
 
-      // UPDATED: Destructured pricing into the payload
       const packagePayload = {
-        packageName: formData.packageName,
-        products: formData.products, 
+        // Backoffice Primary Fields
+        package_name: formData.packageName,
+        package_code: formData.packageCode,
+        product_codes: formData.products.map(p => p.code), // Sends actual backend codes
+        exclusive_package: formData.exclusivePackage,
+        status: formData.packageStatus,
+        
+        // GHL Extra Fields
         pricing: {
           monthlyPrice: formData.monthlyPrice,
           annualPrice: formData.annualPrice,
@@ -193,14 +193,13 @@ export default function PackageUploadWizard() {
         throw new Error(result.details?.message || result.error || 'Failed to upload package');
       }
 
-      setStatus({ type: 'success', message: 'Package successfully added to the database!' });
+      setStatus({ type: 'success', message: 'Package successfully added to Backoffice and CRM!' });
       
       setTimeout(() => {
         setStep(1);
         setStatus({ type: '', message: '' });
-        // UPDATED: Reset new pricing state
         setFormData({
-          packageName: '', packageCode: '', products: [], 
+          packageName: '', packageCode: '', products: [], exclusivePackage: 'YES', packageStatus: 'AVAILABLE',
           monthlyPrice: '', annualPrice: '', oneTimePrice: '', floatingPrice: '',
           youtubeLink: '', description: '', downloadUrl: '', packageInfo: '', groupType: ''
         });
@@ -228,6 +227,7 @@ export default function PackageUploadWizard() {
         .prose p.is-editor-empty:first-child::before {
           content: attr(data-placeholder); float: left; color: rgba(191, 219, 254, 0.2); pointer-events: none; height: 0;
         }
+        select option { background-color: #0A1025; color: #eff6ff; }
       `}</style>
 
       <div className="bg-[#0a0f1c]/80 border border-blue-500/10 backdrop-blur-xl rounded-3xl p-8 md:p-10 shadow-[0_0_80px_rgba(34,211,238,0.05)] relative z-10">
@@ -280,9 +280,31 @@ export default function PackageUploadWizard() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                <div>
+                  <label className={labelClass}>Status</label>
+                  <div className={inputWrapper}>
+                    <Activity className={iconClass} size={20} />
+                    <select name="packageStatus" value={formData.packageStatus} onChange={handleInputChange} className={`${inputClass} appearance-none cursor-pointer`}>
+                      <option value="AVAILABLE">Available</option>
+                      <option value="NOT_AVAILABLE">Not Available</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className={labelClass}>Exclusive Package</label>
+                  <div className={inputWrapper}>
+                    <Star className={iconClass} size={20} />
+                    <select name="exclusivePackage" value={formData.exclusivePackage} onChange={handleInputChange} className={`${inputClass} appearance-none cursor-pointer`}>
+                      <option value="YES">Yes</option>
+                      <option value="NO">No</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <div className="w-full">
                 <div className={`relative ${openDropdown === 'products' ? 'z-50' : 'z-10'}`}>
-                  {/* LOCAL BACKDROP */}
                   {openDropdown === 'products' && (
                     <div className="fixed inset-0 z-40 cursor-default" onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); }}></div>
                   )}
@@ -346,7 +368,6 @@ export default function PackageUploadWizard() {
           {/* STEP 2: PRICING & LINKS */}
           {step === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-              {/* UPDATED: 3-Column Grid for Pricing Options & Links */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
                 {[

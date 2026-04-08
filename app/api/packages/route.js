@@ -1,21 +1,41 @@
 import { NextResponse } from 'next/server';
 
+// Define the core fields that belong exclusively to the Backoffice
+const BACKOFFICE_FIELDS = [
+  'id',
+  'package_name',
+  'package_code',
+  'product_codes',
+  'exclusive_package',
+  'status'
+];
+
+/**
+ * Helper to split payload into Backoffice data and GHL (Extra) data
+ */
+function splitPayload(payload) {
+  const backofficeData = {};
+  const ghlData = {};
+
+  for (const [key, value] of Object.entries(payload)) {
+    if (BACKOFFICE_FIELDS.includes(key)) {
+      backofficeData[key] = value;
+    } else {
+      ghlData[key] = value;
+    }
+  }
+  return { backofficeData, ghlData };
+}
+
+// ----------------------------------------------------------------------
+// POST - Create Package
+// ----------------------------------------------------------------------
 export async function POST(request) {
   try {
     const formData = await request.formData();
-    
-    const packageCode = formData.get('packageCode');
+    const packageCodeForm = formData.get('packageCode');
     const packagePayloadStr = formData.get('packagePayload'); 
-    
-    if (!packageCode) {
-      return NextResponse.json({ error: 'Missing packageCode' }, { status: 400 });
-    }
 
-    const customObjectId = "69bca8aea9a868c2ba27a4a6"; 
-    const locationId = "Dm5yFSciFNH7tur70UZU";
-    const token = process.env.GROWTHMODE_ACCESS_TOKEN;
-
-    // 1. Parse Payload
     let parsedData = {};
     try {
       parsedData = JSON.parse(packagePayloadStr || "{}");
@@ -23,16 +43,48 @@ export async function POST(request) {
       console.error("Failed to parse package payload", e);
     }
 
-    // Stringify the payload for GHL
-    const finalPayloadStr = JSON.stringify(parsedData);
+    // Split data
+    const { backofficeData, ghlData } = splitPayload(parsedData);
+    const finalPackageCode = backofficeData.package_code || packageCodeForm;
 
-    // 2. Create Record in GHL Custom Object
-    const endpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records`;
+    if (!finalPackageCode) {
+      return NextResponse.json({ error: 'Missing package code' }, { status: 400 });
+    }
 
-    const response = await fetch(endpoint, {
+    // Ensure package_code is attached to backoffice payload
+    backofficeData.package_code = finalPackageCode;
+
+    // 1. Create Record in Backoffice (Main Data)
+    const boToken = process.env.BACKOFFICE_API_KEY;
+    const boEndpoint = `https://backoffice.stage.ibimconsulting.com.au/api/add/package`;
+    
+    const boResponse = await fetch(boEndpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${boToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(backofficeData)
+    });
+
+    if (!boResponse.ok) {
+      const boError = await boResponse.json().catch(() => ({}));
+      return NextResponse.json(
+        { error: 'Failed to create package in Backoffice', details: boError }, 
+        { status: boResponse.status }
+      );
+    }
+
+    // 2. Create Record in GHL Custom Object (Supplemental Data)
+    const customObjectId = "69bca8aea9a868c2ba27a4a6"; 
+    const locationId = "Dm5yFSciFNH7tur70UZU";
+    const ghlToken = process.env.GROWTHMODE_ACCESS_TOKEN;
+    const ghlEndpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records`;
+
+    const ghlResponse = await fetch(ghlEndpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ghlToken}`,
         'Version': '2021-07-28',
         'Location-Id': locationId,
         'Content-Type': 'application/json',
@@ -40,22 +92,22 @@ export async function POST(request) {
       body: JSON.stringify({
         locationId: locationId, 
         properties: {
-          "package_code": packageCode,
-          "data": finalPayloadStr 
+          "package_code": finalPackageCode,
+          "data": JSON.stringify(ghlData) // Only save non-backoffice data to GHL
         }
       })
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
+    if (!ghlResponse.ok) {
+      const errorData = await ghlResponse.json();
       return NextResponse.json(
-        { error: 'Failed to create package in CRM', details: errorData }, 
-        { status: response.status }
+        { error: 'Failed to save supplemental data in CRM. Backoffice save succeeded.', details: errorData }, 
+        { status: ghlResponse.status }
       );
     }
 
-    const data = await response.json();
-    return NextResponse.json({ success: true, data });
+    const ghlResponseData = await ghlResponse.json();
+    return NextResponse.json({ success: true, backoffice_saved: true, ghl_data: ghlResponseData });
 
   } catch (error) {
     console.error("Integration Error:", error);
@@ -63,142 +115,223 @@ export async function POST(request) {
   }
 }
 
+// ----------------------------------------------------------------------
+// GET - Read Packages
+// ----------------------------------------------------------------------
+// ----------------------------------------------------------------------
+// GET - Read Packages
+// ----------------------------------------------------------------------
 export async function GET(request) {
   try {
-    // 1. Extract query parameters from the URL
     const { searchParams } = new URL(request.url);
-    const packageCode = searchParams.get('packageCode'); 
-    const page = parseInt(searchParams.get('page')) || 1;    // Default to page 1
-    const limit = parseInt(searchParams.get('limit')) || 10; // Default to 10 items
+    const packageCode = searchParams.get('packageCode') || ''; 
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 10;
 
+    // 1. Fetch Main Data from Backoffice
+    const boToken = process.env.BACKOFFICE_API_KEY;
+    const boUrl = `https://backoffice.stage.ibimconsulting.com.au/api/get/packages?package_code=${packageCode}&page=${page}&per_page=${limit}`;
+    
+    const boResponse = await fetch(boUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${boToken}`,
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!boResponse.ok) {
+      return NextResponse.json({ error: 'Failed to fetch packages from Backoffice' }, { status: boResponse.status });
+    }
+
+    const boData = await boResponse.json();
+    
+    // UPDATED: Extract from the nested data.data structure
+    const backofficeRecords = boData?.data?.data || [];
+
+    if (packageCode && backofficeRecords.length === 0) {
+      return NextResponse.json({ success: false, error: 'Package not found in Backoffice' }, { status: 404 });
+    }
+
+    // UPDATED: Use explicit pagination properties provided by the backoffice
+    const currentPage = boData?.data?.current_page || 1;
+    const lastPage = boData?.data?.last_page || 1;
+    const hasMore = currentPage < lastPage;
+
+    // 2. Fetch Supplemental Data from GHL
     const customObjectId = "69bca8aea9a868c2ba27a4a6"; 
     const locationId = "Dm5yFSciFNH7tur70UZU";
-    const token = process.env.GROWTHMODE_ACCESS_TOKEN;
+    const ghlToken = process.env.GROWTHMODE_ACCESS_TOKEN;
+    const ghlEndpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records/search`;
 
-    const endpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records/search`;
-
-    // 2. Build the dynamic search payload with backend pagination
     const searchBody = {
       locationId: locationId,
-      page: page,          
-      pageLimit: packageCode ? 1 : limit // If searching by code, limit to 1. Otherwise, use our limit.
+      page: 1, 
+      pageLimit: packageCode ? 1 : 100 
     };
 
     if (packageCode) {
-      searchBody.query = [
-        {
-          field: "package_code",
-          operator: "EQUALS",
-          value: packageCode
-        }
-      ];
+      searchBody.query = [{ field: "package_code", operator: "EQUALS", value: packageCode }];
     }
 
-    const response = await fetch(endpoint, {
+    const ghlResponse = await fetch(ghlEndpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${ghlToken}`,
         'Version': '2021-07-28',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(searchBody)
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return NextResponse.json(
-        { error: 'Failed to fetch packages from CRM', details: errorData }, 
-        { status: response.status }
-      );
+    let ghlRecords = [];
+    if (ghlResponse.ok) {
+      const ghlData = await ghlResponse.json();
+      ghlRecords = ghlData.records || [];
     }
 
-    const data = await response.json();
-    
-    if (packageCode && data.records?.length > 0) {
-        return NextResponse.json({ success: true, record: data.records[0] });
-    } else if (packageCode && data.records?.length === 0) {
-        return NextResponse.json({ success: false, error: 'Package not found' }, { status: 404 });
+    // 3. Merge Backoffice and GHL data based on package_code
+    const mergedRecords = backofficeRecords.map(boRecord => {
+      const matchingGhl = ghlRecords.find(g => g.properties?.package_code === boRecord.package_code);
+      let parsedGhlData = {};
+      
+      if (matchingGhl && matchingGhl.properties?.data) {
+        try {
+          parsedGhlData = JSON.parse(matchingGhl.properties.data);
+        } catch (e) {
+          console.error("Error parsing GHL JSON data for record", boRecord.package_code);
+        }
+      }
+
+      // UPDATED: Parse the stringified product_codes back into a normal array
+      let parsedProductCodes = [];
+      if (typeof boRecord.product_codes === 'string') {
+        try {
+          parsedProductCodes = JSON.parse(boRecord.product_codes);
+        } catch (e) {
+          parsedProductCodes = [boRecord.product_codes]; // Fallback just in case
+        }
+      } else if (Array.isArray(boRecord.product_codes)) {
+        parsedProductCodes = boRecord.product_codes;
+      }
+
+      return {
+        ...parsedGhlData, // 1. Spread GHL extra data first (Pricing, YouTube, Description)
+        ...boRecord,      // 2. Spread Backoffice data LAST (Overwrites any GHL data if there's a conflict)
+        product_codes: parsedProductCodes, // 3. Explicitly force the Backoffice product array
+        _ghlRecordId: matchingGhl?.id || null 
+      };
+    });
+
+    if (packageCode) {
+      return NextResponse.json({ success: true, record: mergedRecords[0] });
     }
 
-    // 3. Return the specific page of records, plus a boolean to help the frontend know if there are more pages
-    const records = data.records || [];
     return NextResponse.json({ 
       success: true, 
-      records: records,
-      hasMore: records.length === limit 
+      records: mergedRecords,
+      hasMore: hasMore // UPDATED: Use the boolean evaluated from backoffice pagination
     });
 
   } catch (error) {
-    console.error("CRM Fetch Error:", error);
+    console.error("Fetch Error:", error);
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
   }
 }
 
+// ----------------------------------------------------------------------
+// PATCH - Update Package
+// ----------------------------------------------------------------------
 export async function PATCH(request) {
   try {
     const formData = await request.formData();
-    const recordId = formData.get('recordId');
+    const recordId = formData.get('recordId'); // GHL Record ID
     const packagePayload = formData.get('packagePayload');
 
-    if (!recordId || !packagePayload) {
-      return NextResponse.json({ error: 'Missing required update data' }, { status: 400 });
+    if (!packagePayload) {
+      return NextResponse.json({ error: 'Missing update payload' }, { status: 400 });
     }
 
     const parsedNewData = JSON.parse(packagePayload);
-    const customObjectId = "69bca8aea9a868c2ba27a4a6";
-    const locationId = "Dm5yFSciFNH7tur70UZU";
-    const token = process.env.GROWTHMODE_ACCESS_TOKEN;
+    const { backofficeData, ghlData } = splitPayload(parsedNewData);
 
-    // 1. Fetch the EXISTING record
-    const getResponse = await fetch(
-      `https://services.leadconnectorhq.com/objects/${customObjectId}/records/${recordId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Version': '2021-07-28',
-          'Location-Id': locationId,
-        }
-      }
-    );
-
-    if (!getResponse.ok) throw new Error('Failed to fetch existing record from CRM');
-    const existingRecord = await getResponse.json();
-    const existingProperties = existingRecord?.record?.properties || {};
-    
-    let existingPayload = {};
-    try {
-      existingPayload = JSON.parse(existingProperties.data || "{}");
-    } catch (e) {
-      existingPayload = {};
+    // Ensure Backoffice ID exists for the backoffice update
+    if (!backofficeData.id) {
+      return NextResponse.json({ error: 'Missing Backoffice ID in payload for update' }, { status: 400 });
     }
 
-    // 2. Deep Merge Payload
-    const finalPayload = {
-      ...existingPayload, 
-      ...parsedNewData
-    };
+    // 1. Update Backoffice (Main Data)
+    const boToken = process.env.BACKOFFICE_API_KEY;
+    const boUpdateEndpoint = `https://backoffice.stage.ibimconsulting.com.au/api/update/package`;
+    
+    const boResponse = await fetch(boUpdateEndpoint, {
+      method: 'POST', // Provided spec says Backoffice update uses POST
+      headers: {
+        'Authorization': `Bearer ${boToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(backofficeData)
+    });
 
-    // 3. Push Update to GoHighLevel
-    const updateEndpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records/${recordId}?locationId=${locationId}`;
+    if (!boResponse.ok) {
+      const boError = await boResponse.json().catch(() => ({}));
+      return NextResponse.json({ error: 'Failed to update Backoffice', details: boError }, { status: boResponse.status });
+    }
 
-    const updateResponse = await fetch(updateEndpoint, {
-        method: 'PUT', 
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Version': '2021-07-28',
-        },
-        body: JSON.stringify({
-          properties: {
-            data: JSON.stringify(finalPayload)
+    // 2. Update GHL (Supplemental Data)
+    if (recordId) {
+      const customObjectId = "69bca8aea9a868c2ba27a4a6";
+      const locationId = "Dm5yFSciFNH7tur70UZU";
+      const ghlToken = process.env.GROWTHMODE_ACCESS_TOKEN;
+
+      // Fetch existing GHL record to merge extra JSON deeply
+      const getResponse = await fetch(
+        `https://services.leadconnectorhq.com/objects/${customObjectId}/records/${recordId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${ghlToken}`,
+            'Version': '2021-07-28',
+            'Location-Id': locationId,
           }
-        })
-      }
-    );
+        }
+      );
 
-    if (!updateResponse.ok) {
-      const errorData = await updateResponse.json();
-      return NextResponse.json({ error: 'Failed to update CRM', details: errorData }, { status: 400 });
+      if (getResponse.ok) {
+        const existingRecord = await getResponse.json();
+        const existingProperties = existingRecord?.record?.properties || {};
+        
+        let existingPayload = {};
+        try {
+          existingPayload = JSON.parse(existingProperties.data || "{}");
+        } catch (e) {
+          existingPayload = {};
+        }
+
+        const finalGhlPayload = {
+          ...existingPayload, 
+          ...ghlData
+        };
+
+        const updateEndpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records/${recordId}?locationId=${locationId}`;
+        const updateResponse = await fetch(updateEndpoint, {
+            method: 'PUT', 
+            headers: {
+              'Authorization': `Bearer ${ghlToken}`,
+              'Content-Type': 'application/json',
+              'Version': '2021-07-28',
+            },
+            body: JSON.stringify({
+              properties: {
+                data: JSON.stringify(finalGhlPayload)
+              }
+            })
+          }
+        );
+
+        if (!updateResponse.ok) {
+          console.warn("Backoffice updated, but GHL CRM update failed.");
+        }
+      }
     }
 
     return NextResponse.json({ success: true, message: 'Package updated successfully!' });
@@ -209,11 +342,16 @@ export async function PATCH(request) {
   }
 }
 
+// ----------------------------------------------------------------------
+// DELETE - Delete Package
+// ----------------------------------------------------------------------
 export async function DELETE(request) {
   try {
-    // 1. Get the parameters from the URL
     const { searchParams } = new URL(request.url);
-    const recordId = searchParams.get('id');
+    const recordId = searchParams.get('id'); // GHL Record ID
+
+    // Note: Backoffice DELETE endpoint was not provided in spec. 
+    // If Backoffice has a delete endpoint, it should be triggered here first before CRM deletion.
 
     if (!recordId) {
       return NextResponse.json({ error: 'Missing CRM record ID' }, { status: 400 });
@@ -223,7 +361,6 @@ export async function DELETE(request) {
     const locationId = "Dm5yFSciFNH7tur70UZU";
     const token = process.env.GROWTHMODE_ACCESS_TOKEN;
 
-    // 2. Delete from GoHighLevel
     const deleteEndpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records/${recordId}`;
     
     const response = await fetch(deleteEndpoint, {
