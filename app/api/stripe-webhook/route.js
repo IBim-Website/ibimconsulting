@@ -113,7 +113,7 @@ export async function POST(request) {
             backoffice_status: response.status,
             backoffice_error: errorData,
             payload_sent: apiPayload,
-
+            backoffice_api_key: process.env.BACKOFFICE_API_KEY
           }
         });
       }
