@@ -91,7 +91,7 @@ export async function POST(request) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // 'Authorization': `Bearer ${process.env.BACKOFFICE_API_KEY}` // Uncomment if needed
+          'Authorization': `Bearer ${process.env.BACKOFFICE_API_KEY}` // Uncomment if needed
         },
         body: JSON.stringify(apiPayload),
       });
@@ -112,7 +112,8 @@ export async function POST(request) {
           debug_info: {
             backoffice_status: response.status,
             backoffice_error: errorData,
-            payload_sent: apiPayload
+            payload_sent: apiPayload,
+
           }
         });
       }
