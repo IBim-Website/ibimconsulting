@@ -27,6 +27,38 @@ function splitPayload(payload) {
   return { backofficeData, ghlData };
 }
 
+/**
+ * Helper to authenticate and get the dynamic Backoffice Token
+ */
+async function getBackofficeToken() {
+  const authEndpoint = 'https://backoffice.stage.ibimconsulting.com.au/api/authenticate';
+  
+  const authResponse = await fetch(authEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      user_name: process.env.BACKOFFICE_USERNAME,
+      password: process.env.BACKOFFICE_PASSWORD
+    })
+  });
+
+  if (!authResponse.ok) {
+    throw new Error(`Backoffice authentication failed with status ${authResponse.status}`);
+  }
+
+  const authData = await authResponse.json();
+
+  console.log(authData)
+  
+  if (authData.status === true && authData.data?.token) {
+    return authData.data.token;
+  } else {
+    throw new Error('Failed to retrieve Backoffice token from the response');
+  }
+}
+
 // ----------------------------------------------------------------------
 // POST - Create Package
 // ----------------------------------------------------------------------
@@ -55,7 +87,7 @@ export async function POST(request) {
     backofficeData.package_code = finalPackageCode;
 
     // 1. Create Record in Backoffice (Main Data)
-    const boToken = process.env.BACKOFFICE_API_KEY;
+    const boToken = await getBackofficeToken();
     const boEndpoint = `https://backoffice.stage.ibimconsulting.com.au/api/add/package`;
     
     const boResponse = await fetch(boEndpoint, {
@@ -118,9 +150,6 @@ export async function POST(request) {
 // ----------------------------------------------------------------------
 // GET - Read Packages
 // ----------------------------------------------------------------------
-// ----------------------------------------------------------------------
-// GET - Read Packages
-// ----------------------------------------------------------------------
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -129,7 +158,7 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get('limit')) || 10;
 
     // 1. Fetch Main Data from Backoffice
-    const boToken = process.env.BACKOFFICE_API_KEY;
+    const boToken = await getBackofficeToken();
     const boUrl = `https://backoffice.stage.ibimconsulting.com.au/api/get/packages?package_code=${packageCode}&page=${page}&per_page=${limit}`;
     
     const boResponse = await fetch(boUrl, {
@@ -261,7 +290,7 @@ export async function PATCH(request) {
     }
 
     // 1. Update Backoffice (Main Data)
-    const boToken = process.env.BACKOFFICE_API_KEY;
+    const boToken = await getBackofficeToken();
     const boUpdateEndpoint = `https://backoffice.stage.ibimconsulting.com.au/api/update/package`;
     
     const boResponse = await fetch(boUpdateEndpoint, {

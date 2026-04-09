@@ -75,7 +75,7 @@ export default function PackagesGrid({ isMounted = true }) {
           else if (floating > 0) { defaultPrice = floating; defaultPlan = "Floating"; }
 
           return {
-            id: record.id,
+            id: record.package_uuid,
             name: record.package_name || record.packageName || "Unnamed Package",
             price: defaultPrice,
             defaultPlan: defaultPlan,

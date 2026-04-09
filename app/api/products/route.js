@@ -6,8 +6,39 @@ import { NextResponse } from 'next/server';
 const GHL_CUSTOM_OBJECT_ID = "69a6d83eb206eb7c36275bd5"; 
 const GHL_LOCATION_ID = "Dm5yFSciFNH7tur70UZU";
 
-const getBoHeaders = () => ({
-  'Authorization': `Bearer ${process.env.BACKOFFICE_API_KEY}`,
+/**
+ * Helper to authenticate and get the dynamic Backoffice Token
+ */
+async function getBackofficeToken() {
+  const authEndpoint = 'https://backoffice.stage.ibimconsulting.com.au/api/authenticate';
+  
+  const authResponse = await fetch(authEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      user_name: process.env.BACKOFFICE_USERNAME,
+      password: process.env.BACKOFFICE_PASSWORD
+    })
+  });
+
+  if (!authResponse.ok) {
+    throw new Error(`Backoffice authentication failed with status ${authResponse.status}`);
+  }
+
+  const authData = await authResponse.json();
+  
+  if (authData.status === true && authData.data?.token) {
+    return authData.data.token;
+  } else {
+    throw new Error('Failed to retrieve Backoffice token from the response');
+  }
+}
+
+// Updated to async so it can fetch the token right before making headers
+const getBoHeaders = async () => ({
+  'Authorization': `Bearer ${await getBackofficeToken()}`,
   'Content-Type': 'application/json',
   'Accept': 'application/json'
 });
@@ -80,7 +111,7 @@ export async function POST(request) {
 
     const boResponse = await fetch('https://backoffice.stage.ibimconsulting.com.au/api/add/product', {
       method: 'POST',
-      headers: getBoHeaders(),
+      headers: await getBoHeaders(), // <-- Await added
       body: JSON.stringify(boPayload)
     });
 
@@ -171,7 +202,7 @@ export async function GET(request) {
 
     const boResponse = await fetch(boUrl.toString(), {
       method: 'GET',
-      headers: getBoHeaders() // Ensure getBoHeaders is defined at the top of your file
+      headers: await getBoHeaders() // <-- Await added
     });
 
     if (!boResponse.ok) {
@@ -202,7 +233,7 @@ export async function GET(request) {
 
     // 2. Fetch GHL data to merge in the extra info
     const ghlSearchBody = {
-      locationId: GHL_LOCATION_ID, // Ensure GHL_LOCATION_ID is defined at the top of your file
+      locationId: GHL_LOCATION_ID, 
       page: 1, 
       pageLimit: 100 
     };
@@ -213,7 +244,7 @@ export async function GET(request) {
 
     const ghlResponse = await fetch(`https://services.leadconnectorhq.com/objects/${GHL_CUSTOM_OBJECT_ID}/records/search`, {
       method: 'POST',
-      headers: getGhlHeaders(), // Ensure getGhlHeaders is defined at the top of your file
+      headers: getGhlHeaders(), 
       body: JSON.stringify(ghlSearchBody)
     });
 
@@ -271,6 +302,7 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
   }
 }
+
 // ----------------------------------------------------------------------
 // PATCH: Update Product
 // ----------------------------------------------------------------------
@@ -304,7 +336,7 @@ export async function PATCH(request) {
 
     const boUpdateRes = await fetch('https://backoffice.stage.ibimconsulting.com.au/api/update/product', {
       method: 'POST', // Note: BO uses POST for updates
-      headers: getBoHeaders(),
+      headers: await getBoHeaders(), // <-- Await added
       body: JSON.stringify(boPayload)
     });
 
@@ -374,7 +406,7 @@ export async function DELETE(request) {
     // 1. Delete from Backoffice
     const boDeleteRes = await fetch('https://backoffice.stage.ibimconsulting.com.au/api/delete/product', {
       method: 'POST', // Note: BO uses POST for delete
-      headers: getBoHeaders(),
+      headers: await getBoHeaders(), // <-- Await added
       body: JSON.stringify({ id: id })
     });
 

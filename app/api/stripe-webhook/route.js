@@ -5,6 +5,36 @@ import Stripe from 'stripe';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET; 
 
+/**
+ * Helper to authenticate and get the dynamic Backoffice Token
+ */
+async function getBackofficeToken() {
+  const authEndpoint = 'https://backoffice.stage.ibimconsulting.com.au/api/authenticate';
+  
+  const authResponse = await fetch(authEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      user_name: process.env.BACKOFFICE_USERNAME,
+      password: process.env.BACKOFFICE_PASSWORD
+    })
+  });
+
+  if (!authResponse.ok) {
+    throw new Error(`Backoffice authentication failed with status ${authResponse.status}`);
+  }
+
+  const authData = await authResponse.json();
+  
+  if (authData.status === true && authData.data?.token) {
+    return authData.data.token;
+  } else {
+    throw new Error('Failed to retrieve Backoffice token from the response');
+  }
+}
+
 export async function POST(request) {
   try {
     const body = await request.text();
@@ -86,12 +116,15 @@ export async function POST(request) {
 
       console.log("Sending payload to Backoffice API:", JSON.stringify(apiPayload, null, 2));
 
+      // Fetch dynamic token
+      const boToken = await getBackofficeToken();
+
       // 4. SEND TO BACKOFFICE API
       const response = await fetch('https://backoffice.stage.ibimconsulting.com.au/api/order/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.BACKOFFICE_API_KEY}` // Uncomment if needed
+          'Authorization': `Bearer ${boToken}` 
         },
         body: JSON.stringify(apiPayload),
       });
@@ -113,7 +146,7 @@ export async function POST(request) {
             backoffice_status: response.status,
             backoffice_error: errorData,
             payload_sent: apiPayload,
-            backoffice_api_key: process.env.BACKOFFICE_API_KEY
+            token_fetched: !!boToken // Safely confirm token was generated
           }
         });
       }
