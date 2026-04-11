@@ -10,7 +10,7 @@ const GHL_LOCATION_ID = "Dm5yFSciFNH7tur70UZU";
  * Helper to authenticate and get the dynamic Backoffice Token
  */
 async function getBackofficeToken() {
-  const authEndpoint = 'https://backoffice.stage.ibimconsulting.com.au/api/authenticate';
+  const authEndpoint = 'https://backoffice.ibimconsulting.com.au/api/authenticate';
   
   const authResponse = await fetch(authEndpoint, {
     method: 'POST',
@@ -109,7 +109,7 @@ export async function POST(request) {
       status: status
     };
 
-    const boResponse = await fetch('https://backoffice.stage.ibimconsulting.com.au/api/add/product', {
+    const boResponse = await fetch('https://backoffice.ibimconsulting.com.au/api/add/product', {
       method: 'POST',
       headers: await getBoHeaders(), // <-- Await added
       body: JSON.stringify(boPayload)
@@ -189,7 +189,7 @@ export async function GET(request) {
     const status = searchParams.get('status') || 'ACTIVE'; 
 
     // 1. Fetch from Backoffice API
-    const boUrl = new URL('https://backoffice.stage.ibimconsulting.com.au/api/get/products');
+    const boUrl = new URL('https://backoffice.ibimconsulting.com.au/api/get/products');
     boUrl.searchParams.append('page', page);
     boUrl.searchParams.append('per_page', limit);
     
@@ -334,7 +334,7 @@ export async function PATCH(request) {
     if (description) boPayload.description = description;
     if (status) boPayload.status = status;
 
-    const boUpdateRes = await fetch('https://backoffice.stage.ibimconsulting.com.au/api/update/product', {
+    const boUpdateRes = await fetch('https://backoffice.ibimconsulting.com.au/api/update/product', {
       method: 'POST', // Note: BO uses POST for updates
       headers: await getBoHeaders(), // <-- Await added
       body: JSON.stringify(boPayload)
@@ -404,7 +404,7 @@ export async function DELETE(request) {
     }
 
     // 1. Delete from Backoffice
-    const boDeleteRes = await fetch('https://backoffice.stage.ibimconsulting.com.au/api/delete/product', {
+    const boDeleteRes = await fetch('https://backoffice.ibimconsulting.com.au/api/delete/product', {
       method: 'POST', // Note: BO uses POST for delete
       headers: await getBoHeaders(), // <-- Await added
       body: JSON.stringify({ id: id })

@@ -9,7 +9,7 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
  * Helper to authenticate and get the dynamic Backoffice Token
  */
 async function getBackofficeToken() {
-  const authEndpoint = 'https://backoffice.stage.ibimconsulting.com.au/api/authenticate';
+  const authEndpoint = 'https://backoffice.ibimconsulting.com.au/api/authenticate';
   
   const authResponse = await fetch(authEndpoint, {
     method: 'POST',
@@ -120,7 +120,7 @@ export async function POST(request) {
       const boToken = await getBackofficeToken();
 
       // 4. SEND TO BACKOFFICE API
-      const response = await fetch('https://backoffice.stage.ibimconsulting.com.au/api/order/create', {
+      const response = await fetch('https://backoffice.ibimconsulting.com.au/api/order/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -31,7 +31,7 @@ function splitPayload(payload) {
  * Helper to authenticate and get the dynamic Backoffice Token
  */
 async function getBackofficeToken() {
-  const authEndpoint = 'https://backoffice.stage.ibimconsulting.com.au/api/authenticate';
+  const authEndpoint = 'https://backoffice.ibimconsulting.com.au/api/authenticate';
   
   const authResponse = await fetch(authEndpoint, {
     method: 'POST',
@@ -88,7 +88,7 @@ export async function POST(request) {
 
     // 1. Create Record in Backoffice (Main Data)
     const boToken = await getBackofficeToken();
-    const boEndpoint = `https://backoffice.stage.ibimconsulting.com.au/api/add/package`;
+    const boEndpoint = `https://backoffice.ibimconsulting.com.au/api/add/package`;
     
     const boResponse = await fetch(boEndpoint, {
       method: 'POST',
@@ -159,7 +159,7 @@ export async function GET(request) {
 
     // 1. Fetch Main Data from Backoffice
     const boToken = await getBackofficeToken();
-    const boUrl = `https://backoffice.stage.ibimconsulting.com.au/api/get/packages?package_code=${packageCode}&page=${page}&per_page=${limit}`;
+    const boUrl = `https://backoffice.ibimconsulting.com.au/api/get/packages?package_code=${packageCode}&page=${page}&per_page=${limit}`;
     
     const boResponse = await fetch(boUrl, {
       method: 'GET',
@@ -291,7 +291,7 @@ export async function PATCH(request) {
 
     // 1. Update Backoffice (Main Data)
     const boToken = await getBackofficeToken();
-    const boUpdateEndpoint = `https://backoffice.stage.ibimconsulting.com.au/api/update/package`;
+    const boUpdateEndpoint = `https://backoffice.ibimconsulting.com.au/api/update/package`;
     
     const boResponse = await fetch(boUpdateEndpoint, {
       method: 'POST', // Provided spec says Backoffice update uses POST
