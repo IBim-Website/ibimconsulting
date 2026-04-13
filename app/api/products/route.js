@@ -53,18 +53,67 @@ const getGhlHeaders = () => ({
 // Helper to find a GHL record by productCode
 async function findGhlRecordByCode(productCode) {
   const endpoint = `https://services.leadconnectorhq.com/objects/${GHL_CUSTOM_OBJECT_ID}/records/search`;
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: getGhlHeaders(),
-    body: JSON.stringify({
-      locationId: GHL_LOCATION_ID,
-      pageLimit: 1,
-      query: [{ field: "tool_code", operator: "EQUALS", value: productCode }]
-    })
-  });
-  if (!response.ok) return null;
-  const data = await response.json();
-  return data.records && data.records.length > 0 ? data.records[0] : null;
+  
+  // Clean the string to ensure no trailing spaces break the search
+  const cleanProductCode = productCode.trim();
+
+  // FIX: 'query' must be a simple text string, not an array of objects
+  const requestBody = {
+    locationId: GHL_LOCATION_ID,
+    page: 1, 
+    pageLimit: 10,
+    query: cleanProductCode 
+  };
+
+  console.log(`\n--- [GHL SEARCH DEBUG] ---`);
+  console.log(`Searching for: "${cleanProductCode}"`);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: getGhlHeaders(),
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ [GHL Search Failed] Status: ${response.status}`);
+      console.error(`❌ [GHL Error Details]:`, errorText);
+      console.log(`--------------------------\n`);
+      return null;
+    }
+
+    const data = await response.json();
+    const records = data.records || [];
+    
+    console.log(`✅ [GHL Search Success] Found ${records.length} potential matches.`);
+    
+    if (records.length === 0) {
+        console.log(`--------------------------\n`);
+        return null;
+    }
+
+    // FIX: Because the API does a global text search, we strictly filter 
+    // the results on the backend to guarantee the 'tool_code' matches exactly.
+    const exactMatch = records.find(record => {
+        const props = record.properties || {};
+        return props.tool_code === cleanProductCode;
+    });
+
+    if (exactMatch) {
+        console.log(`✅ [Exact Match Found] GHL Record ID: ${exactMatch.id}`);
+    } else {
+        console.log(`⚠️ [No Exact Match] Search returned results, but no exact tool_code matched.`);
+    }
+    
+    console.log(`--------------------------\n`);
+    
+    return exactMatch || null;
+
+  } catch (error) {
+    console.error(`❌ [GHL Search Exception]:`, error.message);
+    return null;
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -317,8 +366,8 @@ export async function PATCH(request) {
     const description = formData.get('description');
     const status = formData.get('status');
     
-    // Identifier to find corresponding GHL record
-    const productCode = formData.get('productCode'); 
+    // FIX 1: Added fallback for productCode to match POST behavior
+    const productCode = formData.get('productCode') || formData.get('product_code'); 
     
     // GHL fields
     const productPayload = formData.get('productPayload');
@@ -336,7 +385,7 @@ export async function PATCH(request) {
 
     const boUpdateRes = await fetch('https://backoffice.ibimconsulting.com.au/api/update/product', {
       method: 'POST', // Note: BO uses POST for updates
-      headers: await getBoHeaders(), // <-- Await added
+      headers: await getBoHeaders(),
       body: JSON.stringify(boPayload)
     });
 
@@ -346,6 +395,9 @@ export async function PATCH(request) {
     }
 
     // 2. Update GHL Extra Payload (if provided and productCode is known)
+    let ghlUpdateSuccess = true;
+    let ghlErrorDetails = null;
+
     if (productPayload && productCode) {
       const parsedNewData = JSON.parse(productPayload);
       
@@ -370,7 +422,8 @@ export async function PATCH(request) {
         };
 
         const updateEndpoint = `https://services.leadconnectorhq.com/objects/${GHL_CUSTOM_OBJECT_ID}/records/${recordId}?locationId=${GHL_LOCATION_ID}`;
-        await fetch(updateEndpoint, {
+
+        const ghlUpdate = await fetch(updateEndpoint, {
             method: 'PUT', 
             headers: getGhlHeaders(),
             body: JSON.stringify({
@@ -379,10 +432,28 @@ export async function PATCH(request) {
               }
             })
         });
+
+        // FIX 4: Properly catch and log GHL errors instead of failing silently
+        if (!ghlUpdate.ok) {
+           ghlUpdateSuccess = false;
+           ghlErrorDetails = await ghlUpdate.json();
+           console.error("GHL Update Failed:", ghlErrorDetails);
+           // Optional: You can return a 400 here if you want the whole request to fail when GHL fails.
+        } else {
+           const ghlUpdateData = await ghlUpdate.json();
+           console.log("GHL Update Success:", ghlUpdateData);
+        }
+      } else {
+        console.warn(`No existing GHL record found for productCode: ${productCode}`);
       }
     }
 
-    return NextResponse.json({ success: true, message: 'Product updated successfully!' });
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Product updated successfully!',
+      ghlUpdateSuccess,
+      ...(ghlErrorDetails && { ghlErrorDetails })
+    });
 
   } catch (error) {
     console.error("PATCH Error:", error);
