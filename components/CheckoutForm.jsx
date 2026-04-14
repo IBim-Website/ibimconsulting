@@ -14,28 +14,22 @@ export default function CheckoutForm({ amount }) {
 
   const [errorMessage, setErrorMessage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isStripeReady, setIsStripeReady] = useState(false); // NEW: Track iframe load
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!stripe || !elements) {
-      // Stripe.js hasn't yet loaded.
-      return;
-    }
+    if (!stripe || !elements) return;
 
     setIsLoading(true);
 
     const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        // Make sure to change this to your payment completion page
         return_url: `${window.location.origin}/checkout/success`,
       },
     });
 
-    // This point will only be reached if there is an immediate error when
-    // confirming the payment. Otherwise, your customer will be redirected to
-    // your `return_url`.
     if (error.type === "card_error" || error.type === "validation_error") {
       setErrorMessage(error.message);
     } else {
@@ -47,21 +41,36 @@ export default function CheckoutForm({ amount }) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-gray-700">
-          <ShieldCheck className="w-5 h-5 text-green-600" />
+      {/* Updated to match your dark UI */}
+      <div className="bg-[#020617]/50 p-4 rounded-xl border border-blue-900/30 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-blue-200">
+          <ShieldCheck className="w-5 h-5 text-cyan-400" />
           <span className="font-medium text-sm">Secure Payment</span>
         </div>
-        <span className="font-bold text-lg">${(amount / 100).toFixed(2)}</span>
+        <span className="font-bold text-lg text-white">${(amount / 100).toFixed(2)}</span>
       </div>
 
+      {/* Show spinner while Stripe connects to their servers */}
+      {!isStripeReady && (
+        <div className="flex flex-col items-center justify-center py-8 gap-3 text-blue-400/50">
+          <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
+          <span className="text-xs font-medium">Connecting to secure server...</span>
+        </div>
+      )}
+
       {/* Stripe's pre-built UI element */}
-      <PaymentElement id="payment-element" options={{ layout: "tabs" }} />
+      <div className={isStripeReady ? "block" : "hidden"}>
+        <PaymentElement 
+          id="payment-element" 
+          options={{ layout: "tabs" }} 
+          onReady={() => setIsStripeReady(true)} // Triggers when fully loaded
+        />
+      </div>
 
       <button
-        disabled={isLoading || !stripe || !elements}
+        disabled={isLoading || !stripe || !elements || !isStripeReady}
         id="submit"
-        className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-sm font-black uppercase tracking-widest rounded-2xl text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_rgba(34,211,238,0.2)]"
       >
         {isLoading ? (
           <Loader2 className="w-5 h-5 animate-spin" />
@@ -73,9 +82,8 @@ export default function CheckoutForm({ amount }) {
         )}
       </button>
 
-      {/* Show any error or success messages */}
       {errorMessage && (
-        <div className="text-red-600 flex items-center gap-2 text-sm mt-2 bg-red-50 p-3 rounded-md">
+        <div className="text-red-400 flex items-center gap-2 text-sm bg-red-500/10 border border-red-500/20 p-4 rounded-xl">
           <span>{errorMessage}</span>
         </div>
       )}
