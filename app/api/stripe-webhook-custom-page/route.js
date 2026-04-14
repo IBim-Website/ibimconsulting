@@ -1,0 +1,129 @@
+import { NextResponse } from 'next/server';
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET; 
+
+async function getBackofficeToken() {
+  const authEndpoint = 'https://backoffice.ibimconsulting.com.au/api/authenticate';
+  const authResponse = await fetch(authEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_name: process.env.BACKOFFICE_USERNAME,
+      password: process.env.BACKOFFICE_PASSWORD
+    })
+  });
+
+  if (!authResponse.ok) throw new Error(`Backoffice auth failed: ${authResponse.status}`);
+  const authData = await authResponse.json();
+  if (authData.status === true && authData.data?.token) return authData.data.token;
+  throw new Error('Failed to retrieve Backoffice token');
+}
+
+export async function POST(request) {
+  try {
+    const body = await request.text();
+    const signature = request.headers.get('stripe-signature');
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
+    } catch (err) {
+      console.error(`⚠️ Webhook signature verification failed:`, err.message);
+      return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
+    }
+
+    // NEW LOGIC: Listen for payment_intent.succeeded
+    if (event.type === 'payment_intent.succeeded') {
+      const paymentIntent = event.data.object;
+
+      // 1. Extract the compressed cart from metadata
+      let cartItems = [];
+      try {
+        cartItems = JSON.parse(paymentIntent.metadata.cart_items || '[]');
+      } catch (e) {
+        console.error("Failed to parse cart metadata:", e);
+      }
+
+      // 2. Map it to your Order API Format
+      const orderItems = cartItems.map((item) => {
+        const mappedItem = {
+          license_type: item.lic, 
+          type: item.type,
+          quantity: item.qty,
+          unit_price: item.price, 
+          total_price: item.price * item.qty, 
+        };
+
+        if (item.type === 'PACKAGE') {
+          mappedItem.package_id = item.id; // Map the ID we passed in metadata
+        } else {
+          mappedItem.product_id = item.id;
+        }
+
+        return mappedItem;
+      });
+
+      // 3. Extract Customer Info
+      // Payment Intents store this inside the 'charges' array from the Payment Element
+      const billingDetails = paymentIntent.charges?.data[0]?.billing_details || {};
+
+      const uniqueOrderId = Math.floor(Date.now() / 1000);
+
+      // 4. Format Payload
+      const apiPayload = {
+        order_info: {
+          order_id: uniqueOrderId,
+          type: "WEBSITE",
+          source: "STRIPE",
+          order_amount: Number((paymentIntent.amount / 100).toFixed(2)), 
+          order_number: paymentIntent.id, // Using PaymentIntent ID as order number
+          date: new Date(paymentIntent.created * 1000).toISOString().split('T')[0] 
+        },
+        customer_info: {
+          name: billingDetails.name || "Unknown",
+          email: billingDetails.email || "",
+          phone: billingDetails.phone || ""
+        },
+        order_items: orderItems
+      };
+
+      console.log("Sending payload to Backoffice API:", JSON.stringify(apiPayload, null, 2));
+
+      const boToken = await getBackofficeToken();
+
+      const response = await fetch('https://backoffice.ibimconsulting.com.au/api/order/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${boToken}` 
+        },
+        body: JSON.stringify(apiPayload),
+      });
+
+      if (!response.ok) {
+        let errorData;
+        try { errorData = await response.json(); } 
+        catch (e) { errorData = await response.text(); }
+
+        console.error(`❌ Backoffice API Error:`, JSON.stringify(errorData));
+
+        return NextResponse.json({ 
+          received: true, 
+          warning: 'Failed to send to backoffice',
+          debug_info: { backoffice_status: response.status, backoffice_error: errorData }
+        });
+      }
+
+      const successData = await response.json();
+      console.log("✅ Order successfully created in Backoffice:", successData);
+    }
+
+    return NextResponse.json({ received: true });
+
+  } catch (error) {
+    console.error("Webhook processing error:", error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}

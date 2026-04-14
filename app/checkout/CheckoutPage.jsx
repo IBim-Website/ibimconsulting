@@ -47,6 +47,7 @@ export default function CheckoutPage() {
   const amountInCents = Math.round(finalTotal * 100);
 
   // 4. Fetch Payment Intent when amount changes
+  // 4. Fetch Payment Intent when amount changes
   useEffect(() => {
     if (amountInCents > 0) {
       // Clear old secret to show skeleton while fetching new price
@@ -55,13 +56,13 @@ export default function CheckoutPage() {
       fetch("/api/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: amountInCents }),
+        body: JSON.stringify({ amount: amountInCents, cart: cart }), // <-- Cart added here!
       })
         .then((res) => res.json())
         .then((data) => setClientSecret(data.clientSecret))
         .catch((err) => console.error("Failed to initialize checkout:", err));
     }
-  }, [amountInCents]);
+  }, [amountInCents, cart]); // <-- Added cart to dependency array to prevent stale data
 
   const handleApplyPromo = async () => {
     const code = promoCodeInput.trim().toUpperCase();

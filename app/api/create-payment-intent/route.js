@@ -4,15 +4,30 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST(request) {
   try {
-    const { amount } = await request.json();
+    const { amount, cart } = await request.json(); // Make sure your frontend sends 'cart' along with 'amount'
 
-    // Create a PaymentIntent with the order amount and currency
+    // Compress the cart to fit inside Stripe's 500-character metadata limit
+    const compressedCart = cart.map(item => {
+      const isPackage = !!item.products || (item.groupType && item.groupType.toLowerCase().includes('bundle'));
+      const rawPackage = item.package || 'ONE_TIME';
+      const licenseType = rawPackage.toUpperCase().replace(/[- ]/g, '_');
+      
+      return {
+        id: item.id, // Assuming this maps to your crm_id
+        type: isPackage ? 'PACKAGE' : 'PRODUCT',
+        qty: item.quantity || 1,
+        lic: licenseType,
+        price: item.price
+      };
+    });
+
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount, // Amount in cents (e.g., 5000 = $50.00)
+      amount: amount,
       currency: "usd",
-      // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
-      automatic_payment_methods: {
-        enabled: true,
+      automatic_payment_methods: { enabled: true },
+      metadata: {
+        // We stringify the compressed cart to read it later in the webhook
+        cart_items: JSON.stringify(compressedCart),
       },
     });
 
