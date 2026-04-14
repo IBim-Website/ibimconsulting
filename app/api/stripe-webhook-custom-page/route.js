@@ -1,32 +1,48 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
+// Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET2; 
 
+/**
+ * Helper to authenticate and get the dynamic Backoffice Token
+ */
 async function getBackofficeToken() {
   const authEndpoint = 'https://backoffice.ibimconsulting.com.au/api/authenticate';
+  
   const authResponse = await fetch(authEndpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({
       user_name: process.env.BACKOFFICE_USERNAME,
       password: process.env.BACKOFFICE_PASSWORD
     })
   });
 
-  if (!authResponse.ok) throw new Error(`Backoffice auth failed: ${authResponse.status}`);
+  if (!authResponse.ok) {
+    throw new Error(`Backoffice authentication failed with status ${authResponse.status}`);
+  }
+
   const authData = await authResponse.json();
-  if (authData.status === true && authData.data?.token) return authData.data.token;
-  throw new Error('Failed to retrieve Backoffice token');
+  
+  if (authData.status === true && authData.data?.token) {
+    return authData.data.token;
+  } else {
+    throw new Error('Failed to retrieve Backoffice token from the response');
+  }
 }
 
 export async function POST(request) {
   try {
     const body = await request.text();
     const signature = request.headers.get('stripe-signature');
+
     let event;
 
+    // 1. VERIFY STRIPE SIGNATURE
     try {
       event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
     } catch (err) {
@@ -34,11 +50,11 @@ export async function POST(request) {
       return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
     }
 
-    // NEW LOGIC: Listen for payment_intent.succeeded
+    // 2. HANDLE SUCCESSFUL CUSTOM CHECKOUT PAYMENT
     if (event.type === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object;
 
-      // 1. Extract the compressed cart from metadata
+      // Unpack the compressed cart data from the Payment Intent metadata
       let cartItems = [];
       try {
         cartItems = JSON.parse(paymentIntent.metadata.cart_items || '[]');
@@ -46,7 +62,7 @@ export async function POST(request) {
         console.error("Failed to parse cart metadata:", e);
       }
 
-      // 2. Map it to your Order API Format
+      // 3. MAP STRIPE DATA TO YOUR BACKOFFICE API FORMAT
       const orderItems = cartItems.map((item) => {
         const mappedItem = {
           license_type: item.lic, 
@@ -57,7 +73,7 @@ export async function POST(request) {
         };
 
         if (item.type === 'PACKAGE') {
-          mappedItem.package_id = item.id; // Map the ID we passed in metadata
+          mappedItem.package_id = item.id; 
         } else {
           mappedItem.product_id = item.id;
         }
@@ -65,25 +81,25 @@ export async function POST(request) {
         return mappedItem;
       });
 
-      // 3. Extract Customer Info
-      // Payment Intents store this inside the 'charges' array from the Payment Element
+      // Extract Customer Info from the Payment Intent's charge details
       const billingDetails = paymentIntent.charges?.data[0]?.billing_details || {};
 
+      // Generate a unique integer for the required order_id field
       const uniqueOrderId = Math.floor(Date.now() / 1000);
 
-      // 4. Format Payload
+      // Format the final payload for the backoffice API
       const apiPayload = {
         order_info: {
-          order_id: uniqueOrderId,
+          order_id: uniqueOrderId, 
           type: "WEBSITE",
           source: "STRIPE",
           order_amount: Number((paymentIntent.amount / 100).toFixed(2)), 
-          order_number: paymentIntent.id, // Using PaymentIntent ID as order number
+          order_number: paymentIntent.id, // Using PaymentIntent ID as the readable order number
           date: new Date(paymentIntent.created * 1000).toISOString().split('T')[0] 
         },
         customer_info: {
           name: billingDetails.name || "Unknown",
-          email: billingDetails.email || "",
+          email: billingDetails.email || "", // This is where the email from your CheckoutForm lands
           phone: billingDetails.phone || ""
         },
         order_items: orderItems
@@ -91,8 +107,10 @@ export async function POST(request) {
 
       console.log("Sending payload to Backoffice API:", JSON.stringify(apiPayload, null, 2));
 
+      // Fetch dynamic token
       const boToken = await getBackofficeToken();
 
+      // 4. SEND TO BACKOFFICE API
       const response = await fetch('https://backoffice.ibimconsulting.com.au/api/order/create', {
         method: 'POST',
         headers: {
@@ -104,15 +122,23 @@ export async function POST(request) {
 
       if (!response.ok) {
         let errorData;
-        try { errorData = await response.json(); } 
-        catch (e) { errorData = await response.text(); }
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          errorData = await response.text();
+        }
 
-        console.error(`❌ Backoffice API Error:`, JSON.stringify(errorData));
+        console.error(`❌ Backoffice API Error [Status ${response.status}]:`, JSON.stringify(errorData));
 
         return NextResponse.json({ 
           received: true, 
           warning: 'Failed to send to backoffice',
-          debug_info: { backoffice_status: response.status, backoffice_error: errorData }
+          debug_info: {
+            backoffice_status: response.status,
+            backoffice_error: errorData,
+            payload_sent: apiPayload,
+            token_fetched: !!boToken 
+          }
         });
       }
 
