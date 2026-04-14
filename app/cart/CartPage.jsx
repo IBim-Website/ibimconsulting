@@ -2,13 +2,14 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Trash2, ArrowLeft, ArrowRight, ShoppingCart, ShieldCheck, Zap, Loader2, ExternalLink, Package, LayoutGrid, Plus, Minus, AlertTriangle } from 'lucide-react';
 import { useCart } from '@/app/CartContext'; 
 
 export default function CartPage() {
   const { cart, removeFromCart, updateCartItem, isMounted } = useCart();
+  const router = useRouter();
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
-  const [checkoutError, setCheckoutError] = useState(null);
   const [activeItemId, setActiveItemId] = useState(null);
 
   if (!isMounted) return null;
@@ -16,30 +17,20 @@ export default function CartPage() {
   // Calculate subtotal considering item quantities
   const subtotal = cart.reduce((total, item) => total + ((item.price || 0) * (item.quantity || 1)), 0);
 
-  // --- NEW: STRIPE CONFLICT DETECTION ---
+  // STRIPE CONFLICT DETECTION
   const hasMonthly = cart.some(item => item.package?.toLowerCase() === 'monthly');
   const hasAnnual = cart.some(item => item.package?.toLowerCase() === 'annual');
   const hasMixedSubscriptionConflict = hasMonthly && hasAnnual;
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     // Double check just in case
     if (hasMixedSubscriptionConflict) return; 
 
     setIsCheckoutLoading(true);
-    setCheckoutError(null);
-    try {
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cart }),
-      });
-      const data = await response.json();
-      if (data.url) window.location.href = data.url;
-      else throw new Error(data.message || data.error || "Failed to initialize checkout");
-    } catch (error) {
-      setCheckoutError(error.message);
-      setIsCheckoutLoading(false);
-    }
+    
+    // Redirect to the custom internal checkout page
+    // The checkout page will read the subtotal and items directly from useCart()
+    router.push('/checkout');
   };
 
   const handleQuantityChange = (id, delta) => {
@@ -254,7 +245,7 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* NEW: Warning Box for Mixed Subscriptions */}
+              {/* Warning Box for Mixed Subscriptions */}
               {hasMixedSubscriptionConflict && (
                 <div className="mb-8 p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-3 animate-in fade-in zoom-in-95 duration-300">
                   <AlertTriangle className="text-amber-400 shrink-0 mt-0.5" size={20} />
@@ -285,8 +276,6 @@ export default function CartPage() {
               >
                 {isCheckoutLoading ? <Loader2 size={20} className="animate-spin" /> : <>Proceed to Checkout <ArrowRight size={20} /></>}
               </button>
-              
-              {checkoutError && <p className="text-red-400 text-xs mt-4 text-center bg-red-500/10 py-2 rounded-lg border border-red-500/20">{checkoutError}</p>}
 
               <div className="mt-8 flex items-start gap-3 text-[11px] text-blue-300/30 bg-blue-950/20 p-5 rounded-2xl border border-blue-900/30 leading-relaxed">
                 <ShieldCheck size={20} className="text-cyan-400/50 shrink-0" />
