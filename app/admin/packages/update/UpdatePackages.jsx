@@ -172,6 +172,7 @@ export default function PackageBulkEdit() {
           return {
             id: record.id, // Backoffice ID
             _ghlRecordId: record._ghlRecordId || '', // GHL ID for updates/deletes
+            package_uuid: record.package_uuid || '',
             
             packageName: record.package_name || record.packageName || '',
             packageCode: record.package_code || '',
@@ -283,7 +284,7 @@ export default function PackageBulkEdit() {
       try {
         const payload = {
           // Primary Backoffice Fields
-          id: rowData.id,
+          id: rowData.package_uuid,
           package_name: rowData.packageName,
           package_code: rowData.packageCode,
           product_codes: rowData.productCodes,

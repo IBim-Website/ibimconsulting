@@ -307,34 +307,65 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Failed to update Backoffice', details: boError }, { status: boResponse.status });
     }
 
-    // 2. Update GHL (Supplemental Data)
-    if (recordId) {
-      const customObjectId = "69bca8aea9a868c2ba27a4a6";
-      const locationId = "Dm5yFSciFNH7tur70UZU";
-      const ghlToken = process.env.GROWTHMODE_ACCESS_TOKEN;
+    // 2. Update OR Create GHL (Supplemental Data)
+    let ghlUpdateSuccess = true;
+    let ghlErrorDetails = null;
 
-      // Fetch existing GHL record to merge extra JSON deeply
-      const getResponse = await fetch(
-        `https://services.leadconnectorhq.com/objects/${customObjectId}/records/${recordId}`,
-        {
+    const customObjectId = "69bca8aea9a868c2ba27a4a6";
+    const locationId = "Dm5yFSciFNH7tur70UZU";
+    const ghlToken = process.env.GROWTHMODE_ACCESS_TOKEN;
+
+    // UPSERT LOGIC: If the package exists in BO but has no GHL record yet, CREATE it.
+    if (!recordId || recordId === 'null' || recordId === 'undefined' || recordId === '') {
+      console.warn(`⚠️ [GHL UPSERT] No 'recordId' found for package. Creating a NEW GHL record...`);
+      
+      const createEndpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records`;
+      const createResponse = await fetch(createEndpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${ghlToken}`,
+          'Version': '2021-07-28',
+          'Location-Id': locationId,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          locationId: locationId, 
+          properties: {
+            "package_code": backofficeData.package_code || parsedNewData.packageCode,
+            "data": JSON.stringify(ghlData) 
+          }
+        })
+      });
+
+      if (!createResponse.ok) {
+        ghlUpdateSuccess = false;
+        ghlErrorDetails = await createResponse.json();
+        console.error(`❌ [GHL Create Failed] Status: ${createResponse.status}`);
+        console.error(`❌ [GHL Error Details]:`, JSON.stringify(ghlErrorDetails, null, 2));
+      } else {
+        console.log(`✅ [GHL Create Success] Missing record was successfully created in CRM.`);
+      }
+
+    } else {
+      // NORMAL UPDATE LOGIC (If recordId exists)
+      const getEndpoint = `https://services.leadconnectorhq.com/objects/${customObjectId}/records/${recordId}?locationId=${locationId}`;
+      const getResponse = await fetch(getEndpoint, {
           headers: {
             'Authorization': `Bearer ${ghlToken}`,
             'Version': '2021-07-28',
             'Location-Id': locationId,
           }
-        }
-      );
+      });
 
-      if (getResponse.ok) {
+      if (!getResponse.ok) {
+         const getError = await getResponse.text();
+         console.error(`❌ [GHL GET Failed] Status: ${getResponse.status}`, getError);
+      } else {
         const existingRecord = await getResponse.json();
         const existingProperties = existingRecord?.record?.properties || {};
         
         let existingPayload = {};
-        try {
-          existingPayload = JSON.parse(existingProperties.data || "{}");
-        } catch (e) {
-          existingPayload = {};
-        }
+        try { existingPayload = JSON.parse(existingProperties.data || "{}"); } catch (e) {}
 
         const finalGhlPayload = {
           ...existingPayload, 
@@ -358,12 +389,22 @@ export async function PATCH(request) {
         );
 
         if (!updateResponse.ok) {
-          console.warn("Backoffice updated, but GHL CRM update failed.");
+          ghlUpdateSuccess = false;
+          ghlErrorDetails = await updateResponse.json();
+          console.error(`❌ [GHL Update Failed] Status: ${updateResponse.status}`);
+          console.error(`❌ [GHL Error Details]:`, JSON.stringify(ghlErrorDetails, null, 2));
+        } else {
+          console.log(`✅ [GHL Update Success] Record ${recordId} updated.`);
         }
       }
     }
 
-    return NextResponse.json({ success: true, message: 'Package updated successfully!' });
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Package updated successfully!',
+      ghlUpdateSuccess,
+      ...(ghlErrorDetails && { ghlErrorDetails })
+    });
 
   } catch (error) {
     console.error("PATCH Error:", error);
