@@ -352,9 +352,6 @@ export async function GET(request) {
   }
 }
 
-// ----------------------------------------------------------------------
-// PATCH: Update Product
-// ----------------------------------------------------------------------
 export async function PATCH(request) {
   try {
     const formData = await request.formData();
@@ -366,11 +363,12 @@ export async function PATCH(request) {
     const description = formData.get('description');
     const status = formData.get('status');
     
-    // FIX 1: Added fallback for productCode to match POST behavior
+    // Added fallback for productCode to match POST behavior
     const productCode = formData.get('productCode') || formData.get('product_code'); 
     
     // GHL fields
     const productPayload = formData.get('productPayload');
+    const imageFile = formData.get('image'); // Extracted just in case the fallback needs to create an image
 
     if (!id) {
       return NextResponse.json({ error: 'Missing required Backoffice "id" for update' }, { status: 400 });
@@ -394,7 +392,7 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Failed to update Backoffice', details: errorData }, { status: 400 });
     }
 
-    // 2. Update GHL Extra Payload (if provided and productCode is known)
+    // 2. Update GHL Extra Payload (or Create if missing)
     let ghlUpdateSuccess = true;
     let ghlErrorDetails = null;
 
@@ -433,24 +431,67 @@ export async function PATCH(request) {
             })
         });
 
-        // FIX 4: Properly catch and log GHL errors instead of failing silently
         if (!ghlUpdate.ok) {
            ghlUpdateSuccess = false;
            ghlErrorDetails = await ghlUpdate.json();
            console.error("GHL Update Failed:", ghlErrorDetails);
-           // Optional: You can return a 400 here if you want the whole request to fail when GHL fails.
         } else {
            const ghlUpdateData = await ghlUpdate.json();
            console.log("GHL Update Success:", ghlUpdateData);
         }
       } else {
-        console.warn(`No existing GHL record found for productCode: ${productCode}`);
+        // --- NEW FALLBACK CREATION LOGIC ---
+        console.warn(`No existing GHL record found for productCode: ${productCode}. Creating a new record...`);
+
+        // Upload Image to GHL Media Library (if passed during PATCH)
+        let uploadedImageUrl = null;
+        if (imageFile) {
+          const mediaFormData = new FormData();
+          mediaFormData.append('file', imageFile);
+
+          const mediaResponse = await fetch('https://services.leadconnectorhq.com/medias/upload-file', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.GROWTHMODE_ACCESS_TOKEN}`,
+              'Version': '2021-07-28'
+            },
+            body: mediaFormData
+          });
+
+          if (mediaResponse.ok) {
+            const mediaData = await mediaResponse.json();
+            uploadedImageUrl = mediaData.url; 
+          }
+        }
+
+        const createEndpoint = `https://services.leadconnectorhq.com/objects/${GHL_CUSTOM_OBJECT_ID}/records`;
+        const ghlCreate = await fetch(createEndpoint, {
+          method: 'POST',
+          headers: getGhlHeaders(),
+          body: JSON.stringify({
+            locationId: GHL_LOCATION_ID, 
+            properties: {
+              "tool_code": productCode,
+              "data": JSON.stringify(parsedNewData), 
+              ...(uploadedImageUrl && { "image": [{ "url": uploadedImageUrl }] }) 
+            }
+          })
+        });
+
+        if (!ghlCreate.ok) {
+           ghlUpdateSuccess = false;
+           ghlErrorDetails = await ghlCreate.json();
+           console.error("GHL Fallback Creation Failed:", ghlErrorDetails);
+        } else {
+           const ghlCreateData = await ghlCreate.json();
+           console.log("GHL Fallback Creation Success:", ghlCreateData);
+        }
       }
     }
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Product updated successfully!',
+      message: 'Product updated (or created) successfully!',
       ghlUpdateSuccess,
       ...(ghlErrorDetails && { ghlErrorDetails })
     });
