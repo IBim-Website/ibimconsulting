@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { categoriesList, packagesList } from './constants'; 
+import { useCart } from '@/app/CartContext'; // Added cart context import
 
 const getEmbedUrl = (url) => {
   if (!url) return '';
@@ -30,19 +31,21 @@ export default function ToolsGrid({ isMounted }) {
   const [selectedPackage, setSelectedPackage] = useState("All");
   const [activeVideo, setActiveVideo] = useState(null);
 
+  // Cart Context & UI State mapping for individual tools
+  const { addToCart } = useCart();
+  const [addedTools, setAddedTools] = useState({});
+
   useEffect(() => {
     const fetchTools = async () => {
       if (page === 1) setIsLoading(true);
       else setIsLoadingMore(true);
 
       try {
-        // Backend handles default "status=ACTIVE" automatically now, but we can leave it here for clarity
         const response = await fetch(`/api/products?page=${page}&limit=9&status=ACTIVE`);
         const result = await response.json();
 
         if (!response.ok) throw new Error(result.error || 'Failed to fetch tools');
 
-        // Because of our backend fix, `result.records` is now a clean array of merged objects!
         const fetchedRecords = result.records || [];
 
         const mappedTools = fetchedRecords.map(record => {
@@ -54,7 +57,6 @@ export default function ToolsGrid({ isMounted }) {
           const rawToolCode = record.product_code || "unnamed-tool";
           const formattedSlug = rawToolCode.toLowerCase().replace(/[_ ]+/g, '-');
 
-          // Extract Image robustly
           let imageUrl = "https://placehold.co/600x400/020617/3b82f6?text=No+Image";
           if (record.image) {
               if (Array.isArray(record.image) && record.image.length > 0) {
@@ -74,7 +76,8 @@ export default function ToolsGrid({ isMounted }) {
             package: parsedData.subCategory || "None", 
             image: imageUrl,
             youtubeLink: parsedData.links?.youtubeLink || null,
-            slug: formattedSlug 
+            slug: formattedSlug,
+            rawPricing: parsedData.pricing || {} // Stored for cart accuracy
           };
         });
 
@@ -87,7 +90,6 @@ export default function ToolsGrid({ isMounted }) {
           });
         }
         
-        // Backend now provides a reliable hasMore boolean
         setHasMore(result.hasMore);
 
       } catch (err) {
@@ -124,6 +126,51 @@ export default function ToolsGrid({ isMounted }) {
     if (!isLoadingMore && hasMore) {
       setPage(prevPage => prevPage + 1);
     }
+  };
+
+  const handleAddToCart = (e, tool) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Replicate default plan selection from ToolClient
+    let planName = "Monthly";
+    let priceToUse = tool.price;
+
+    if (tool.rawPricing.monthlyPrice && parseFloat(tool.rawPricing.monthlyPrice) > 0) {
+      planName = "Monthly";
+      priceToUse = parseFloat(tool.rawPricing.monthlyPrice);
+    } else if (tool.rawPricing.annualPrice && parseFloat(tool.rawPricing.annualPrice) > 0) {
+      planName = "Annual";
+      priceToUse = parseFloat(tool.rawPricing.annualPrice);
+    } else if (tool.rawPricing.oneTimePrice && parseFloat(tool.rawPricing.oneTimePrice) > 0) {
+      planName = "One-Time";
+      priceToUse = parseFloat(tool.rawPricing.oneTimePrice);
+    } else {
+      planName = tool.package || "None";
+    }
+
+    const cartItem = {
+      id: tool.id,
+      name: tool.name,
+      price: priceToUse,
+      category: Array.isArray(tool.category) ? tool.category[0] : tool.category,
+      package: planName, 
+      image: tool.image,
+      slug: tool.slug,
+      pricingOptions: {
+        monthly: tool.rawPricing.monthlyPrice ? parseFloat(tool.rawPricing.monthlyPrice) : null,
+        annual: tool.rawPricing.annualPrice ? parseFloat(tool.rawPricing.annualPrice) : null,
+        oneTime: tool.rawPricing.oneTimePrice ? parseFloat(tool.rawPricing.oneTimePrice) : null,
+      }
+    };
+
+    addToCart(cartItem);
+
+    // Track state by tool ID so only the clicked button changes
+    setAddedTools(prev => ({ ...prev, [tool.id]: true }));
+    setTimeout(() => {
+      setAddedTools(prev => ({ ...prev, [tool.id]: false }));
+    }, 2000);
   };
 
   return (
@@ -178,8 +225,15 @@ export default function ToolsGrid({ isMounted }) {
 
           <div className="flex-1 w-full">
             <div className={`flex items-center justify-between mb-8 px-2 border-b border-blue-900/30 pb-4 transition-all duration-1000 delay-200 ${isMounted ? 'opacity-100' : 'opacity-0'}`}>
-              <h2 className="text-2xl font-bold text-white drop-shadow-lg transition-all">
+              <h2 className="text-2xl font-bold text-white drop-shadow-lg transition-all mr-5">
                 {selectedCategory !== 'All' ? selectedCategory : 'All Automation Tools'}
+                <div className="inline-flex items-center gap-3 px-5 py-2.5 ml-10 rounded-full bg-blue-950/40 border border-blue-500/20 text-cyan-300 text-sm font-medium mb-8 backdrop-blur-md shadow-[0_0_30px_rgba(59,130,246,0.15)]">
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-gradient-to-r from-cyan-500 to-blue-500"></span>
+                  </span>
+                  <span>Imperial & Metric Supported . Tekla Version 2020 And Above</span>
+                </div>
               </h2>
               <span className="text-xs font-semibold text-cyan-300 px-3 py-1 bg-blue-950/60 rounded-md border border-blue-800/50 shadow-inner">
                 {isLoading ? '...' : (filteredTools.length > 0 ? `${filteredTools.length} Loaded` : '0 Results')}
@@ -214,7 +268,9 @@ export default function ToolsGrid({ isMounted }) {
             {!isLoading && !error && (
               <>
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                  {filteredTools.map((tool, index) => (
+                  {filteredTools.map((tool, index) => {
+                    const isAdded = addedTools[tool.id];
+                    return (
                     <div key={`${tool.id}-${index}`} style={{ transitionDelay: `${(index % 9) * 100}ms` }} className={`group relative flex flex-col justify-between rounded-3xl bg-gradient-to-b from-[#0A1025]/90 to-[#020617]/90 p-1.5 backdrop-blur-xl transition-all duration-700 ease-out hover:-translate-y-2 hover:shadow-[0_15px_40px_-10px_rgba(59,130,246,0.3)] ${isMounted ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'}`}>
                       <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-500/0 via-blue-500/0 to-amber-500/0 opacity-0 transition-opacity duration-500 group-hover:from-cyan-500/40 group-hover:via-blue-600/40 group-hover:to-amber-600/40 group-hover:opacity-100 z-0 pointer-events-none"></div>
                       
@@ -248,15 +304,38 @@ export default function ToolsGrid({ isMounted }) {
                                 <span className="text-[10px] uppercase tracking-wider text-amber-500/60 font-semibold mb-0.5">Starting at</span>
                                 <span className="text-xl font-extrabold text-white drop-shadow-md">${tool.price.toFixed(2)}</span>
                             </div>
-                            <Link href={`/tools/${tool.slug}`} className="z-10">
-                              <button className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-cyan-600 text-white px-5 py-2 text-sm font-bold transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(37,99,235,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] border border-blue-400/20 group-hover:-translate-y-0.5">
-                                  Details
+                            <div className="flex items-center gap-2 z-10">
+                              <button 
+                                onClick={(e) => handleAddToCart(e, tool)}
+                                title={isAdded ? "Added to Cart" : "Add to Cart"}
+                                disabled={isAdded}
+                                className={`flex items-center justify-center p-2.5 rounded-xl transition-all duration-300 active:scale-95 group/cart
+                                  ${isAdded 
+                                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' 
+                                    : 'bg-[#0A1025]/80 hover:bg-gradient-to-r hover:from-blue-600 hover:to-cyan-600 border border-blue-800/50 hover:border-cyan-400/50 text-cyan-400 hover:text-white shadow-[0_0_10px_rgba(37,99,235,0.1)] hover:shadow-[0_0_20px_rgba(34,211,238,0.3)] group-hover:-translate-y-0.5'
+                                  }`}
+                              >
+                                {isAdded ? (
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                  </svg>
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 group-hover/cart:scale-110 transition-transform">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+                                  </svg>
+                                )}
                               </button>
-                            </Link>
+
+                              <Link href={`/tools/${tool.slug}`}>
+                                <button className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-cyan-600 text-white px-5 py-2.5 text-sm font-bold transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(37,99,235,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] border border-blue-400/20 group-hover:-translate-y-0.5">
+                                    Details
+                                </button>
+                              </Link>
+                            </div>
                           </div>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
 
                 {isLoadingMore && (

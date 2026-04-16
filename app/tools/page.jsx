@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Hero from './Hero';
 import ToolsGrid from './ToolsGrid';
 import FAQ from './FAQ';
+import LicensingOptions from '../../components/LicensingOptions';
 
 export default function ToolsPage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -32,8 +33,10 @@ export default function ToolsPage() {
       </div>
 
       {/* Render the extracted components */}
-      <Hero isMounted={isMounted} />
+    <Hero isMounted={isMounted} />
+      {/* <div ></div> */}
       <ToolsGrid isMounted={isMounted} />
+      <LicensingOptions exclude="Floating License" />
       <FAQ />
 
     </main>

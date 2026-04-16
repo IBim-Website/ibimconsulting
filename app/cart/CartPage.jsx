@@ -1,16 +1,19 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Trash2, ArrowLeft, ArrowRight, ShoppingCart, ShieldCheck, Zap, Loader2, ExternalLink, Package, LayoutGrid, Plus, Minus, AlertTriangle } from 'lucide-react';
 import { useCart } from '@/app/CartContext'; 
+import LicensingOptions from '../../components/LicensingOptions';
 
 export default function CartPage() {
   const { cart, removeFromCart, updateCartItem, isMounted } = useCart();
   const router = useRouter();
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [activeItemId, setActiveItemId] = useState(null);
+
+  const licensingRef = useRef(null);
 
   if (!isMounted) return null;
 
@@ -56,32 +59,50 @@ export default function CartPage() {
     updateCartItem(id, { package: newPackage, price: newPrice });
   };
 
+  const scrollToLicensing = () => {
+    licensingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <div className="relative z-10 mx-auto max-w-[1200px] px-6 pt-32 pb-24 min-h-screen">
       
-      <div className="flex items-center gap-4 mb-10 animate-in fade-in slide-in-from-left-4 duration-500">
-        <div className="h-10 w-2 bg-gradient-to-b from-cyan-400 to-blue-600 rounded-full"></div>
-        <h1 className="text-4xl font-black tracking-tight text-white drop-shadow-md">
-          YOUR <span className="text-cyan-400 font-light">CART</span>
-        </h1>
+      {/* Header and Top Actions Container */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 animate-in fade-in slide-in-from-left-4 duration-500">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-2 bg-gradient-to-b from-cyan-400 to-blue-600 rounded-full"></div>
+          <h1 className="text-4xl font-black tracking-tight text-white drop-shadow-md">
+            YOUR <span className="text-cyan-400 font-light">CART</span>
+          </h1>
+        </div>
+
+        {/* The 3 Buttons Moved to Top */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/tools">
+            <button className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 border border-blue-500/30 text-white px-5 py-2.5 text-sm font-bold transition-all shadow-[0_0_15px_rgba(37,99,235,0.2)]">
+              <LayoutGrid size={16} /> Shop Tools
+            </button>
+          </Link>
+          <Link href="/packages">
+            <button className="flex items-center gap-2 rounded-xl bg-[#1e293b] hover:bg-[#334155] border border-blue-500/30 text-white px-5 py-2.5 text-sm font-bold transition-all">
+              <Package size={16} /> Shop Packages
+            </button>
+          </Link>
+          <button 
+            onClick={scrollToLicensing}
+            className="flex items-center gap-2 rounded-xl bg-transparent hover:bg-[#334155]/50 border border-blue-500/30 text-white px-5 py-2.5 text-sm font-bold transition-all"
+          >
+            <ShieldCheck size={16} /> Licensing Options
+          </button>
+        </div>
       </div>
 
       {cart.length === 0 ? (
         <div className="bg-[#0A1025]/60 border border-blue-900/30 rounded-3xl p-16 flex flex-col items-center justify-center backdrop-blur-xl">
           <ShoppingCart size={40} className="text-cyan-400/50 mb-6" />
           <h2 className="text-2xl font-bold text-white mb-2">Your cart is empty</h2>
-          <div className="flex flex-wrap justify-center gap-4 mt-6">
-            <Link href="/tools">
-              <button className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 font-bold transition-all shadow-[0_0_20px_rgba(37,99,235,0.2)]">
-                <LayoutGrid size={18} /> Shop Tools
-              </button>
-            </Link>
-            <Link href="/packages">
-              <button className="flex items-center gap-2 rounded-xl bg-[#1e293b] hover:bg-[#334155] border border-blue-500/30 text-white px-8 py-3 font-bold transition-all">
-                <Package size={18} /> Shop Packages
-              </button>
-            </Link>
-          </div>
+          <p className="text-blue-300/60 text-sm text-center max-w-sm mt-2">
+            Looks like you haven't added any tools or packages yet. Check out the options above to get started!
+          </p>
         </div>
       ) : (
         <div className="flex flex-col lg:flex-row gap-12 items-start">
@@ -218,18 +239,6 @@ export default function CartPage() {
                 </div>
               );
             })}
-
-            <div className="pt-6 flex flex-wrap gap-6 items-center border-t border-blue-900/20">
-              <Link href="/tools" className="inline-flex items-center gap-2 text-sm font-bold text-cyan-400/70 hover:text-cyan-400 transition-all group">
-                <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                Shop More Tools
-              </Link>
-              <div className="h-4 w-[1px] bg-blue-900/40 hidden sm:block"></div>
-              <Link href="/packages" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400/70 hover:text-blue-400 transition-all group">
-                <Package size={16} />
-                Explore Packages
-              </Link>
-            </div>
           </div>
 
           <div className="w-full lg:w-[400px] shrink-0 lg:sticky lg:top-32">
@@ -286,6 +295,10 @@ export default function CartPage() {
 
         </div>
       )}
+      
+      <div ref={licensingRef} className='mt-20 scroll-mt-32'>
+        <LicensingOptions />
+      </div>
     </div>
   );
 }

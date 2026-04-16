@@ -41,11 +41,12 @@ async function findGhlRecordByCode(productCode) {
     
     if (records.length === 0) return null;
 
-    // Filter strictly to ensure the tool_code matches exactly
     const exactMatch = records.find(record => {
         const props = record.properties || {};
         return props.tool_code === cleanProductCode;
     });
+
+    console.log({ exactMatch })
 
     return exactMatch || null;
   } catch (error) {
@@ -73,7 +74,6 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Missing image file' }, { status: 400 });
     }
 
-    // Strict Backend File Type Validation
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!validTypes.includes(imageFile.type)) {
        return NextResponse.json(
@@ -91,7 +91,6 @@ export async function POST(request) {
       headers: {
         'Authorization': `Bearer ${process.env.GROWTHMODE_ACCESS_TOKEN}`,
         'Version': '2021-07-28'
-        // Do NOT set Content-Type here; fetch natively handles multipart/form-data boundaries
       },
       body: mediaFormData
     });
@@ -109,7 +108,20 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Image uploaded but no URL was returned from GHL' }, { status: 500 });
     }
 
-    // 3. Find Existing Record or Create a New One
+    // 3. Define the strict GHL File Meta Object for the NEW image
+    const newImagePayload = {
+      url: uploadedImageUrl,
+      deleted: false,
+      meta: {
+        fieldname: "image", 
+        originalname: imageFile.name || "uploaded_image",
+        mimetype: imageFile.type,
+        size: imageFile.size || 0,
+        url: uploadedImageUrl
+      }
+    };
+
+    // 4. Find Existing Record or Create a New One
     const existingGhlRecord = await findGhlRecordByCode(productCode);
 
     if (!existingGhlRecord) {
@@ -145,30 +157,40 @@ export async function POST(request) {
         });
 
     } else {
-        // --- 4b. UPDATE EXISTING ---
+        // --- 4b. UPDATE EXISTING (TWO-STEP PROCESS) ---
         const recordId = existingGhlRecord.id;
         const updateEndpoint = `https://services.leadconnectorhq.com/objects/${GHL_CUSTOM_OBJECT_ID}/records/${recordId}?locationId=${GHL_LOCATION_ID}`;
 
-        const ghlUpdateResponse = await fetch(updateEndpoint, {
-            method: 'PUT', 
-            headers: getGhlHeaders(),
-            body: JSON.stringify({
-              properties: {
-                "image": [{ "url": uploadedImageUrl }] 
-              }
-            })
+        // 1. Grab existing images and flag them for deletion to wipe them
+        const existingImages = existingGhlRecord.properties.image || [];
+        const oldImagesToWipe = existingImages.map(img => ({
+            ...img,
+            deleted: true
+        }));
+
+        // 2. Combine the old deleted images with your newly defined payload from Step 3
+        const updatedImageArray = [...oldImagesToWipe, newImagePayload];
+
+        const attachResponse = await fetch(updateEndpoint, {
+          method: 'PUT',
+          headers: getGhlHeaders(),
+          body: JSON.stringify({
+            properties: {
+              "image": updatedImageArray 
+            }
+          })
         });
 
-        if (!ghlUpdateResponse.ok) {
-            const updateErr = await ghlUpdateResponse.json();
-            return NextResponse.json({ error: 'Failed to update existing GHL record with image', details: updateErr }, { status: ghlUpdateResponse.status });
+        if (!attachResponse.ok) {
+            const attachErr = await attachResponse.json();
+            return NextResponse.json({ error: 'Failed attaching new image', details: attachErr }, { status: attachResponse.status });
         }
 
-        const updatedRecord = await ghlUpdateResponse.json();
+        const updatedRecord = await attachResponse.json();
 
         return NextResponse.json({ 
           success: true, 
-          message: 'Image successfully uploaded and attached to existing product.',
+          message: 'Old image wiped and new image successfully attached.',
           imageUrl: uploadedImageUrl,
           record: updatedRecord,
           isNewRecord: false

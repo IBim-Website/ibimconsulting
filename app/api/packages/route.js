@@ -156,10 +156,11 @@ export async function GET(request) {
     const packageCode = searchParams.get('packageCode') || ''; 
     const page = parseInt(searchParams.get('page')) || 1;
     const limit = parseInt(searchParams.get('limit')) || 10;
+    const status = searchParams.get('status') || '';
 
     // 1. Fetch Main Data from Backoffice
     const boToken = await getBackofficeToken();
-    const boUrl = `https://backoffice.ibimconsulting.com.au/api/get/packages?package_code=${packageCode}&page=${page}&per_page=${limit}`;
+    const boUrl = `https://backoffice.ibimconsulting.com.au/api/get/packages?package_code=${packageCode}&page=${page}&per_page=${limit}${status != '' ? '&status=' + status : ''}`;
     
     const boResponse = await fetch(boUrl, {
       method: 'GET',

@@ -272,18 +272,6 @@ export default function ToolClient({ slug }) {
                         </span>
                       ))}
                     </div>
-                    
-                    {tool.youtubeLink && (
-                      <button
-                        onClick={() => setActiveVideo(tool.youtubeLink)}
-                        className="shrink-0 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#020617]/80 text-blue-300 hover:text-cyan-300 hover:bg-cyan-600/20 border border-blue-900/50 hover:border-cyan-500/30 backdrop-blur-sm transition-all duration-300 text-xs shadow-lg group/vid"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 group-hover/vid:text-cyan-400">
-                          <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                        </svg>
-                        Watch Demo
-                      </button>
-                    )}
                   </div>
 
                   <h1 className="text-2xl lg:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-cyan-300 leading-tight">
@@ -291,12 +279,25 @@ export default function ToolClient({ slug }) {
                   </h1>
                 </div>
 
-                <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black/50 border border-blue-900/30 flex items-center justify-center">
+                <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black/50 border border-blue-900/30 flex items-center justify-center group/image">
                   <img 
                     src={tool.image} 
                     alt={tool.name} 
-                    className="w-full h-full object-contain opacity-90 p-2"
+                    className="w-full h-full object-contain opacity-90 p-2 transition-opacity duration-300 group-hover/image:opacity-75"
                   />
+                  
+                  {/* Centered Play Button Overlay */}
+                  {tool.youtubeLink && (
+                    <button
+                      onClick={() => setActiveVideo(tool.youtubeLink)}
+                      className="absolute z-20 flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#020617]/70 text-cyan-400 hover:text-white hover:bg-cyan-500 border border-cyan-500/50 backdrop-blur-md transition-all duration-300 shadow-[0_0_30px_rgba(34,211,238,0.3)] hover:scale-110 group/play"
+                      aria-label="Play Demo Video"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 sm:w-10 sm:h-10 ml-1.5 transition-transform duration-300 group-hover/play:scale-105">
+                        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
 

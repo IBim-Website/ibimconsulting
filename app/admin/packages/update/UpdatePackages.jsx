@@ -123,7 +123,7 @@ export default function PackageBulkEdit() {
   // Backend Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(false); 
-  const itemsPerPage = 10;
+  const itemsPerPage = 10000;
 
   // Fetch Packages
   useEffect(() => {
@@ -187,7 +187,7 @@ export default function PackageBulkEdit() {
             oneTimePrice: pricing.oneTimePrice || '',
             floatingPrice: pricing.floatingPrice || '',
             
-            groupType: record.groupType || '',
+            groupType: record.groupType || '', // Retained as data
             youtubeLink: record.youtubeLink || '',
             downloadUrl: record.downloadUrl || '',
             packageInfo: Array.isArray(record.packageInfo) ? record.packageInfo.join(', ') : '',
@@ -300,7 +300,7 @@ export default function PackageBulkEdit() {
           },
           description: rowData.description, 
           packageInfo: typeof rowData.packageInfo === 'string' ? rowData.packageInfo.split(',').map(s => s.trim()).filter(Boolean) : rowData.packageInfo,
-          groupType: rowData.groupType,
+          groupType: rowData.groupType, // Still submitting groupType data
           youtubeLink: rowData.youtubeLink, 
           downloadUrl: rowData.downloadUrl
         };
@@ -449,7 +449,7 @@ export default function PackageBulkEdit() {
                 <thead>
                   <tr>
                     <th className={`${thClass} min-w-[300px] sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]`}>Package Name</th>
-                    <th className={thClass}>Group Type</th>
+                    <th className={thClass}>Status</th>
                     <th className={thClass}>Monthly Price</th>
                     <th className={thClass}>Annual Price</th>
                     <th className={thClass}>One Time Price</th>
@@ -482,7 +482,18 @@ export default function PackageBulkEdit() {
                             />
                           </div>
                         </td>
-                        <td className={tdClass}><input className={inputClass} value={row.groupType} onChange={(e) => handleCellChange(row.id, 'groupType', e.target.value)} /></td>
+                        <td className={tdClass}>
+                          <select 
+                            className={`${inputClass} cursor-pointer hover:bg-white/5 transition-colors ${
+                              row.status === 'AVAILABLE' ? 'text-emerald-400' : 'text-amber-400'
+                            }`}
+                            value={row.status} 
+                            onChange={(e) => handleCellChange(row.id, 'status', e.target.value)}
+                          >
+                            <option value="AVAILABLE" className="bg-[#0a0f1c] text-emerald-400">AVAILABLE</option>
+                            <option value="NOT_AVAILABLE" className="bg-[#0a0f1c] text-amber-400">NOT AVAILABLE</option>
+                          </select>
+                        </td>
                         <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.monthlyPrice} onChange={(e) => handleCellChange(row.id, 'monthlyPrice', e.target.value)} /></td>
                         <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.annualPrice} onChange={(e) => handleCellChange(row.id, 'annualPrice', e.target.value)} /></td>
                         <td className={tdClass}><input className={inputClass} type="number" step="any" value={row.oneTimePrice} onChange={(e) => handleCellChange(row.id, 'oneTimePrice', e.target.value)} /></td>
