@@ -1,10 +1,11 @@
 import React from 'react';
+// Added ChevronLeft for the back/go-to button
 import { Settings, CheckCircle2, Zap } from 'lucide-react';
 
 export default function PackagesHero() {
   return (
     <section className="relative w-full overflow-hidden pt-32 pb-20 md:pt-40 md:pb-28 px-6">
-      
+
       {/* Background Glowing Orbs */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-emerald-500/10 rounded-[100%] blur-[120px] pointer-events-none"></div>
       <div className="absolute top-20 right-0 w-[400px] h-[400px] bg-teal-600/10 rounded-[100%] blur-[100px] pointer-events-none"></div>

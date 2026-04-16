@@ -23,7 +23,7 @@ export async function POST(request) {
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount,
-      currency: "usd",
+      currency: "aud",
       automatic_payment_methods: { enabled: true },
       metadata: {
         // We stringify the compressed cart to read it later in the webhook

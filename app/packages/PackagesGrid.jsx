@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Layers, Check, Youtube, Package, X, Search, Loader2, ShoppingCart } from 'lucide-react';
+import { Layers, Check, Youtube, Package, X, Search, Loader2, ShoppingCart, ChevronLeft } from 'lucide-react';
 import { useCart } from '@/app/CartContext';
 
 const getEmbedUrl = (url) => {
@@ -181,6 +181,17 @@ export default function PackagesGrid({ isMounted = true }) {
 
   return (
     <div className="relative z-10 mx-auto max-w-[1400px] px-6 lg:px-8 pb-24">
+
+      {/* Go to Tools Button */}
+      <div className="absolute top-8 left-6 md:left-12 z-50">
+        <a 
+          href="/tools" 
+          className="group flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/40 border border-blue-800/30 text-blue-200/70 hover:text-emerald-400 hover:border-emerald-500/50 transition-all duration-300 backdrop-blur-md"
+        >
+          <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm font-semibold tracking-wide">Go to Tools</span>
+        </a>
+      </div>
       
       {/* HEADER & SEARCH */}
       <div className="flex flex-col items-center mb-16 text-center pt-12">
@@ -246,7 +257,7 @@ export default function PackagesGrid({ isMounted = true }) {
 
                 <div className="flex items-center justify-between pt-4 border-t border-emerald-900/30">
                   <div className="flex flex-col gap-1 items-start">
-                    <span className="text-xl font-bold text-white">${pkg.price.toFixed(2)}</span>
+                    <span className="text-xl font-bold text-white">AU${pkg.price.toFixed(2)}</span>
                     <select 
                       value={pkg.defaultPlan}
                       onChange={(e) => updatePackagePlan(pkg.id, e.target.value)}
@@ -334,7 +345,7 @@ export default function PackagesGrid({ isMounted = true }) {
               <div className="flex flex-col items-start gap-1">
                 <span className="text-[10px] uppercase text-emerald-500/60 font-bold">Select Plan</span>
                 <div className="flex items-baseline gap-3">
-                  <span className="text-3xl font-black text-white">${selectedBundle.price.toFixed(2)}</span>
+                  <span className="text-3xl font-black text-white">AU${selectedBundle.price.toFixed(2)}</span>
                   <select 
                     value={selectedBundle.defaultPlan}
                     onChange={(e) => updatePackagePlan(selectedBundle.id, e.target.value)}

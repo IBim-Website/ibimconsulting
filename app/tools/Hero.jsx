@@ -1,10 +1,24 @@
 "use client";
 
 import React from 'react';
+import { ChevronLeft } from 'lucide-react';
 
 export default function Hero({ isMounted }) {
   return (
     <div className="relative z-10 mx-auto max-w-[1400px] px-6 pt-20 lg:px-8">
+
+      {/* Go to Tools Button */}
+      <div className="absolute top-8 left-6 md:left-12 z-50">
+        <a 
+          href="/packages" 
+          className="group flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/40 border border-blue-800/30 text-blue-200/70 hover:text-emerald-400 hover:border-emerald-500/50 transition-all duration-300 backdrop-blur-md"
+        >
+          <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm font-semibold tracking-wide">Go to Packages</span>
+        </a>
+      </div>
+
+
       <div 
         className={`flex flex-col items-center text-center mb-16 transition-all duration-1000 ease-out transform ${
           isMounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
