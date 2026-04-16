@@ -352,6 +352,9 @@ export async function GET(request) {
   }
 }
 
+// ----------------------------------------------------------------------
+// PATCH: Update Product
+// ----------------------------------------------------------------------
 export async function PATCH(request) {
   try {
     const formData = await request.formData();
@@ -374,11 +377,29 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Missing required Backoffice "id" for update' }, { status: 400 });
     }
 
+    // --- HTML SANITIZATION HELPER ---
+    // Strips Word-generated junk, inline styles, and redundant spans to keep payload lightweight
+    const sanitizeHtml = (htmlStr) => {
+      if (!htmlStr) return htmlStr;
+      return htmlStr
+        .replace(/ style="[^"]*"/gi, '')          // Remove all inline styles
+        .replace(/ class="[^"]*"/gi, '')          // Remove all classes
+        .replace(/<span[^>]*>/gi, '')             // Remove opening span tags
+        .replace(/<\/span>/gi, '')                // Remove closing span tags
+        .replace(/<o:p>.*?<\/o:p>/gi, '')         // Remove MS Word paragraph markers
+        .replace(/<div[^>]*>/gi, '<p>')           // Convert divs to standard paragraphs
+        .replace(/<\/div>/gi, '</p>')
+        .replace(/&nbsp;/g, ' ')                  // Normalize non-breaking spaces
+        .replace(/\n\s*\n/g, '\n')                // Remove excessive newlines
+        .trim();
+    };
+
     // 1. Update Backoffice
     const boPayload = { id };
     if (productName) boPayload.product_name = productName;
     if (productPrefix) boPayload.product_prefix = productPrefix;
-    if (description) boPayload.description = description;
+    // Sanitize description for Backoffice as well for data consistency
+    if (description) boPayload.description = sanitizeHtml(description); 
     if (status) boPayload.status = status;
 
     const boUpdateRes = await fetch('https://backoffice.ibimconsulting.com.au/api/update/product', {
@@ -398,6 +419,11 @@ export async function PATCH(request) {
 
     if (productPayload && productCode) {
       const parsedNewData = JSON.parse(productPayload);
+      
+      // CRITICAL FIX: Clean the rich-text description inside the GHL JSON payload
+      if (parsedNewData.description) {
+        parsedNewData.description = sanitizeHtml(parsedNewData.description);
+      }
       
       // Find the existing GHL record by productCode
       const existingGhlRecord = await findGhlRecordByCode(productCode);

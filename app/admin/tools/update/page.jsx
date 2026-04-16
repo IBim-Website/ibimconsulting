@@ -1,1 +1,1 @@
-export { default } from './UpdateTools'
+export { default } from './ProductBulkEdit'

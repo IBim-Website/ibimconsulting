@@ -1,7 +1,16 @@
 import Link from 'next/link';
 import { CheckCircle, ArrowLeft } from 'lucide-react';
+import { useCart } from "@/app/CartContext";
 
 export default function SuccessPage() {
+  const { clearCart } = useCart(); 
+
+  useEffect(() => {
+    if (clearCart) {
+      clearCart();
+    }
+  }, [clearCart]);
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] p-4 text-center">
       {/* Success Icon */}
