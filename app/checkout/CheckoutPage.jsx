@@ -244,7 +244,7 @@ export default function CheckoutPage() {
                           {item.name}
                         </h4>
                         <span className="text-sm font-bold text-cyan-400">
-                          ${((item.price * itemQuantity)).toFixed(2)}
+                          AU${((item.price * itemQuantity)).toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
@@ -296,7 +296,7 @@ export default function CheckoutPage() {
               <div className="flex justify-between items-center text-blue-200/60">
                 <span>Subtotal</span>
                 <span className="text-white font-medium">
-                  ${subtotal.toFixed(2)}
+                  AU${subtotal.toFixed(2)}
                 </span>
               </div>
 
@@ -306,7 +306,7 @@ export default function CheckoutPage() {
                     <span className="font-bold">Discount ({activePromo.code})</span>
                     <button onClick={removePromo} className="text-emerald-400/50 hover:text-red-400 text-xs underline transition-colors">Remove</button>
                   </div>
-                  <span className="font-bold">-${(subtotal - finalTotal).toFixed(2)}</span>
+                  <span className="font-bold">-AU${(subtotal - finalTotal).toFixed(2)}</span>
                 </div>
               )}
 
@@ -319,9 +319,9 @@ export default function CheckoutPage() {
             <div className="flex justify-between items-end mt-6 pt-6 border-t border-blue-900/50">
               <span className="text-lg font-bold text-blue-100">Total</span>
               <div className="text-right">
-                <span className="text-xs text-blue-400/50 block mb-1">USD</span>
+                <span className="text-xs text-blue-400/50 block mb-1">AUD</span>
                 <span className="text-3xl font-black text-white drop-shadow-[0_0_15px_rgba(34,211,238,0.2)]">
-                  ${finalTotal.toFixed(2)}
+                  AU${finalTotal.toFixed(2)}
                 </span>
               </div>
             </div>

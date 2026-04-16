@@ -85,7 +85,7 @@ export default function CheckoutForm({ amount }) {
           <ShieldCheck className="w-5 h-5 text-cyan-400" />
           <span className="font-medium text-sm">Secure Payment</span>
         </div>
-        <span className="font-bold text-lg text-white">${(amount / 100).toFixed(2)}</span>
+        <span className="font-bold text-lg text-white">AU${(amount / 100).toFixed(2)}</span>
       </div>
 
       {!isStripeReady && (

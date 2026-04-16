@@ -162,7 +162,7 @@ export default function CartPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-2xl font-black text-white">${(item.price * itemQuantity).toFixed(2)}</p>
+                        <p className="text-2xl font-black text-white">AU${(item.price * itemQuantity).toFixed(2)}</p>
                       </div>
 
                       <div className="mt-3 flex justify-between items-end">
@@ -250,7 +250,7 @@ export default function CartPage() {
               <div className="space-y-4 mb-8 border-b border-blue-900/50 pb-8 text-sm text-blue-200/60">
                 <div className="flex justify-between items-center">
                   <span>Subtotal ({cart.reduce((total, item) => total + (item.quantity || 1), 0)} items)</span>
-                  <span className="text-white font-medium">${subtotal.toFixed(2)}</span>
+                  <span className="text-white font-medium">AU${subtotal.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -270,7 +270,7 @@ export default function CartPage() {
               <div className="flex justify-between items-end mb-10">
                 <span className="text-lg font-bold text-blue-100">Total</span>
                 <span className="text-4xl font-black text-white drop-shadow-[0_0_20px_rgba(34,211,238,0.3)]">
-                  ${subtotal.toFixed(2)}
+                  AU${subtotal.toFixed(2)}
                 </span>
               </div>
 
