@@ -302,7 +302,7 @@ export default function ToolsGrid({ isMounted }) {
                           <div className="mt-6 flex items-center justify-between border-t border-blue-900/30 pt-4 relative overflow-hidden">
                             <div className="flex flex-col transform group-hover:translate-x-1 transition-transform duration-500">
                                 <span className="text-[10px] uppercase tracking-wider text-amber-500/60 font-semibold mb-0.5">Starting at</span>
-                                <span className="text-xl font-extrabold text-white drop-shadow-md">${tool.price.toFixed(2)}</span>
+                                <span className="text-xl font-extrabold text-white drop-shadow-md">AU${tool.price.toFixed(2)}</span>
                             </div>
                             <div className="flex items-center gap-2 z-10">
                               <button 
