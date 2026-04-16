@@ -1,3 +1,6 @@
+"use client"; // Marks this as a Client Component
+
+import { useEffect } from 'react'; // Added missing import
 import Link from 'next/link';
 import { CheckCircle, ArrowLeft } from 'lucide-react';
 import { useCart } from "@/app/CartContext";
