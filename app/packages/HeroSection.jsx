@@ -18,7 +18,7 @@ export default function PackagesHero() {
         {/* Top Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-bold tracking-wide mb-8 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
           <Zap size={16} className="fill-emerald-500" />
-          <span>Ultimate Automation Bundles</span>
+          <span>Ultimate Automation Packages</span>
         </div>
 
         {/* Headline */}
@@ -36,7 +36,7 @@ export default function PackagesHero() {
         </p>
 
         {/* Compatibility Footer Pill */}
-        <div className="inline-flex flex-col sm:flex-row items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-[#0A1025]/80 border border-blue-800/50 backdrop-blur-md shadow-xl text-blue-100/90 text-sm font-medium">
+        {/* <div className="inline-flex flex-col sm:flex-row items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-[#0A1025]/80 border border-blue-800/50 backdrop-blur-md shadow-xl text-blue-100/90 text-sm font-medium">
           <div className="flex items-center gap-2">
             <Settings size={18} className="text-emerald-400" />
             <span>Supports both <strong>Imperial</strong> and <strong>Metric</strong> units</span>
@@ -46,7 +46,7 @@ export default function PackagesHero() {
             <CheckCircle2 size={18} className="text-emerald-400" />
             <span>Compatible with all environments from <strong>Version 2020 onwards</strong></span>
           </div>
-        </div>
+        </div> */}
 
       </div>
     </section>

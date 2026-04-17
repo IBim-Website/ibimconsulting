@@ -195,7 +195,14 @@ export default function PackagesGrid({ isMounted = true }) {
       
       {/* HEADER & SEARCH */}
       <div className="flex flex-col items-center mb-16 text-center pt-12">
-        <h2 className="text-4xl font-extrabold text-white mb-6 drop-shadow-xl">Exploration Bundles</h2>
+        <div className="inline-flex items-center gap-3 px-5 py-2.5 ml-10 rounded-full bg-blue-950/40 border border-blue-500/20 text-cyan-300 text-sm font-medium mb-8 backdrop-blur-md shadow-[0_0_30px_rgba(59,130,246,0.15)]">
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-gradient-to-r from-cyan-500 to-blue-500"></span>
+                  </span>
+                  <span>Imperial & Metric Supported . Tekla Version 2020 And Above</span>
+                </div>
+        <h2 className="text-4xl font-extrabold text-white mb-6 drop-shadow-xl">Explore Packages </h2>
         <div className="relative w-full max-w-md group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-500/50 group-focus-within:text-emerald-400 transition-colors" />
           <input 

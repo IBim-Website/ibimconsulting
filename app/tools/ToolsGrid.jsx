@@ -304,31 +304,39 @@ export default function ToolsGrid({ isMounted }) {
                                 <span className="text-[10px] uppercase tracking-wider text-amber-500/60 font-semibold mb-0.5">Starting at</span>
                                 <span className="text-xl font-extrabold text-white drop-shadow-md">AU${tool.price.toFixed(2)}</span>
                             </div>
-                            <div className="flex items-center gap-2 z-10">
+                            <div className="flex flex-col gap-2 z-10 min-w-[130px]">
                               <button 
                                 onClick={(e) => handleAddToCart(e, tool)}
-                                title={isAdded ? "Added to Cart" : "Add to Cart"}
                                 disabled={isAdded}
-                                className={`flex items-center justify-center p-2.5 rounded-xl transition-all duration-300 active:scale-95 group/cart
+                                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 active:scale-95 group/cart
                                   ${isAdded 
-                                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' 
+                                    ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-400' 
                                     : 'bg-[#0A1025]/80 hover:bg-gradient-to-r hover:from-blue-600 hover:to-cyan-600 border border-blue-800/50 hover:border-cyan-400/50 text-cyan-400 hover:text-white shadow-[0_0_10px_rgba(37,99,235,0.1)] hover:shadow-[0_0_20px_rgba(34,211,238,0.3)] group-hover:-translate-y-0.5'
                                   }`}
                               >
                                 {isAdded ? (
-                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                  </svg>
+                                  <>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                    </svg>
+                                    Added
+                                  </>
                                 ) : (
-                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 group-hover/cart:scale-110 transition-transform">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
-                                  </svg>
+                                  <>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 group-hover/cart:scale-110 transition-transform">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+                                    </svg>
+                                    Add to Cart
+                                  </>
                                 )}
                               </button>
 
-                              <Link href={`/tools/${tool.slug}`}>
-                                <button className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-cyan-600 text-white px-5 py-2.5 text-sm font-bold transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(37,99,235,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] border border-blue-400/20 group-hover:-translate-y-0.5">
+                              <Link href={`/tools/${tool.slug}`} className="w-full block">
+                                <button className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-cyan-600 text-white px-5 py-2.5 text-sm font-bold transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(37,99,235,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] border border-blue-400/20 group-hover:-translate-y-0.5">
                                     Details
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                                    </svg>
                                 </button>
                               </Link>
                             </div>

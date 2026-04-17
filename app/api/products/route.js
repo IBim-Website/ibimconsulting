@@ -323,6 +323,12 @@ export async function GET(request) {
       };
     });
 
+    mergedRecords.sort((a, b) => {
+      const nameA = (a.product_name || '').toString().toLowerCase();
+      const nameB = (b.product_name || '').toString().toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
     // If searching for a specific product code
     if (productCode && mergedRecords.length > 0) {
         return NextResponse.json({ success: true, record: mergedRecords[0] });

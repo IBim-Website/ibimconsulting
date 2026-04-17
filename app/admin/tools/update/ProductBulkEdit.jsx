@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Loader2, ChevronLeft, ChevronRight, Trash2, FileEdit, X, Search, CloudDownload, Download, ImagePlus } from 'lucide-react';
+import { Save, Loader2, ChevronLeft, ChevronRight, Trash2, FileEdit, X, Search, Download, ImagePlus } from 'lucide-react';
 import RichTextEditor from './RichTextEditor';
 import ProductTable from './ProductTable';
 import { exportToExcel } from './exportUtils'; 
@@ -64,11 +64,10 @@ export default function ProductBulkEdit() {
   
   // Loading States
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
-  const [isUploadingImage, setIsUploadingImage] = useState(false); // New Upload State
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   
   const originalProductsRef = useRef([]);
-  const fileInputRef = useRef(null); // Ref for hidden file input
+  const fileInputRef = useRef(null);
   
   // Selection & Action States
   const [selectedId, setSelectedId] = useState(null);
@@ -92,7 +91,8 @@ export default function ProductBulkEdit() {
     const fetchInitialData = async () => {
       setIsInitialLoading(true);
       try {
-        const response = await fetch(`/api/products?page=1&limit=10&status=all`);
+        // Fetching 1000 products by default in one request
+        const response = await fetch(`/api/products?page=1&limit=1000&status=all`);
         const data = await response.json();
 
         if (data.success && isMounted) {
@@ -100,48 +100,11 @@ export default function ProductBulkEdit() {
           setProducts(formattedData);
           originalProductsRef.current = JSON.parse(JSON.stringify(formattedData));
           setIsInitialLoading(false);
-
-          if (data.hasMore) {
-            fetchBackgroundData(2);
-          }
         }
       } catch (error) {
-        setStatus({ type: 'error', message: 'Failed to load initial products.' });
+        setStatus({ type: 'error', message: 'Failed to load products.' });
         setIsInitialLoading(false);
       }
-    };
-
-    const fetchBackgroundData = async (startPage) => {
-      setIsBackgroundLoading(true);
-      let pageToFetch = startPage;
-      let hasMoreData = true;
-
-      while (hasMoreData && isMounted) {
-        try {
-          const response = await fetch(`/api/products?page=${pageToFetch}&limit=50&status=all`);
-          const data = await response.json();
-
-          if (data.success) {
-            const newFormattedData = formatProductData(data.records);
-            
-            setProducts(prevProducts => {
-              const combined = [...prevProducts, ...newFormattedData];
-              originalProductsRef.current = JSON.parse(JSON.stringify(combined));
-              return combined;
-            });
-            
-            hasMoreData = data.hasMore;
-            pageToFetch++;
-          } else {
-            hasMoreData = false;
-          }
-        } catch (error) {
-          console.error("Background sync failed:", error);
-          hasMoreData = false; 
-        }
-      }
-      
-      if (isMounted) setIsBackgroundLoading(false);
     };
 
     fetchInitialData();
@@ -204,7 +167,6 @@ export default function ProductBulkEdit() {
     });
   };
 
-  // --- Image Upload Handler ---
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !selectedId) return;
@@ -240,7 +202,7 @@ export default function ProductBulkEdit() {
     } finally {
       setIsUploadingImage(false);
       if (fileInputRef.current) {
-        fileInputRef.current.value = ''; // Reset file input to allow uploading the same file again if needed
+        fileInputRef.current.value = ''; 
       }
       setTimeout(() => setStatus({ type: '', message: '' }), 5000);
     }
@@ -414,7 +376,6 @@ export default function ProductBulkEdit() {
               {selectedId && (
                 <div className="flex gap-2 animate-in zoom-in-95">
                   
-                  {/* Hidden File Input & Image Upload Button */}
                   <input 
                     type="file" 
                     accept="image/jpeg, image/png, image/gif, image/webp" 
@@ -490,13 +451,6 @@ export default function ProductBulkEdit() {
               
               <div className="w-px h-4 bg-blue-500/20"></div>
               <span>Total: <span className="text-white">{filteredProducts.length}</span> items</span>
-
-              {isBackgroundLoading && (
-                <div className="flex items-center gap-2 text-cyan-400/70 ml-2 animate-pulse bg-cyan-900/20 px-3 py-1 rounded-full border border-cyan-500/20">
-                  <CloudDownload size={14} />
-                  <span className="text-xs font-bold uppercase tracking-wider hidden sm:inline">Syncing database...</span>
-                </div>
-              )}
 
               {dirtyRows.size > 0 && (
                 <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-2 py-1 rounded border border-amber-400/20 ml-2">
