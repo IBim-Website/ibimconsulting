@@ -316,10 +316,16 @@ export async function GET(request) {
       let parsedExtraData = {};
       try { parsedExtraData = JSON.parse(ghlData.data || "{}"); } catch (e) {}
 
+      let image = ghlData.image || null
+
+      if(ghlData.image_url && ghlData.image_url !== ""){
+        image = [{ url: ghlData.image_url }]
+      }
+
       return {
         ...boRecord,
         extraPayload: parsedExtraData,
-        image: ghlData.image || null
+        image
       };
     });
 

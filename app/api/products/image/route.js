@@ -108,20 +108,7 @@ export async function POST(request) {
         return NextResponse.json({ error: 'Image uploaded but no URL was returned from GHL' }, { status: 500 });
     }
 
-    // 3. Define the strict GHL File Meta Object for the NEW image
-    const newImagePayload = {
-      url: uploadedImageUrl,
-      deleted: false,
-      meta: {
-        fieldname: "image", 
-        originalname: imageFile.name || "uploaded_image",
-        mimetype: imageFile.type,
-        size: imageFile.size || 0,
-        url: uploadedImageUrl
-      }
-    };
-
-    // 4. Find Existing Record or Create a New One
+    // 3. Find Existing Record or Create a New One
     const existingGhlRecord = await findGhlRecordByCode(productCode);
 
     if (!existingGhlRecord) {
@@ -157,40 +144,30 @@ export async function POST(request) {
         });
 
     } else {
-        // --- 4b. UPDATE EXISTING (TWO-STEP PROCESS) ---
+        // --- 4b. UPDATE EXISTING (URL BYPASS) ---
         const recordId = existingGhlRecord.id;
         const updateEndpoint = `https://services.leadconnectorhq.com/objects/${GHL_CUSTOM_OBJECT_ID}/records/${recordId}?locationId=${GHL_LOCATION_ID}`;
 
-        // 1. Grab existing images and flag them for deletion to wipe them
-        const existingImages = existingGhlRecord.properties.image || [];
-        const oldImagesToWipe = existingImages.map(img => ({
-            ...img,
-            deleted: true
-        }));
-
-        // 2. Combine the old deleted images with your newly defined payload from Step 3
-        const updatedImageArray = [...oldImagesToWipe, newImagePayload];
-
-        const attachResponse = await fetch(updateEndpoint, {
+        const updateResponse = await fetch(updateEndpoint, {
           method: 'PUT',
           headers: getGhlHeaders(),
           body: JSON.stringify({
             properties: {
-              "image": updatedImageArray 
+              "image_url": uploadedImageUrl // Setting the URL directly into the text/URL field
             }
           })
         });
 
-        if (!attachResponse.ok) {
-            const attachErr = await attachResponse.json();
-            return NextResponse.json({ error: 'Failed attaching new image', details: attachErr }, { status: attachResponse.status });
+        if (!updateResponse.ok) {
+            const updateErr = await updateResponse.json();
+            return NextResponse.json({ error: 'Failed to update existing record with image URL', details: updateErr }, { status: updateResponse.status });
         }
 
-        const updatedRecord = await attachResponse.json();
+        const updatedRecord = await updateResponse.json();
 
         return NextResponse.json({ 
           success: true, 
-          message: 'Old image wiped and new image successfully attached.',
+          message: 'Existing record updated with new image URL.',
           imageUrl: uploadedImageUrl,
           record: updatedRecord,
           isNewRecord: false

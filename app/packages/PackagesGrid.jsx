@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Layers, Check, Youtube, Package, X, Search, Loader2, ShoppingCart, ChevronLeft } from 'lucide-react';
+import { Layers, Check, Youtube, Package, X, Search, Loader2, ShoppingCart, ChevronLeft, Download } from 'lucide-react';
 import { useCart } from '@/app/CartContext';
 
 const getEmbedUrl = (url) => {
@@ -163,7 +163,6 @@ export default function PackagesGrid({ isMounted = true }) {
     }
   };
 
-  // Ungrouped flat list, directly filtered
   const filteredPackages = useMemo(() => {
     return packages.filter(pkg => 
       pkg.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -196,13 +195,26 @@ export default function PackagesGrid({ isMounted = true }) {
       {/* HEADER & SEARCH */}
       <div className="flex flex-col items-center mb-16 text-center pt-12">
         <div className="inline-flex items-center gap-3 px-5 py-2.5 ml-10 rounded-full bg-blue-950/40 border border-blue-500/20 text-cyan-300 text-sm font-medium mb-8 backdrop-blur-md shadow-[0_0_30px_rgba(59,130,246,0.15)]">
-                  <span className="relative flex h-2.5 w-2.5 shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-gradient-to-r from-cyan-500 to-blue-500"></span>
-                  </span>
-                  <span>Imperial & Metric Supported . Tekla Version 2020 And Above</span>
-                </div>
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-gradient-to-r from-cyan-500 to-blue-500"></span>
+          </span>
+          <span>Imperial & Metric Supported . Tekla Version 2020 And Above</span>
+        </div>
+        
         <h2 className="text-4xl font-extrabold text-white mb-6 drop-shadow-xl">Explore Packages </h2>
+        
+        {/* NEW PRESENTATION BUTTON */}
+        <a 
+          href="https://workdrive.zoho.com.au/file/s2pql5906f2176cd74e5eae7066c1b8abf440"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mb-8 group flex items-center gap-2 px-6 py-3 rounded-full bg-emerald-900/30 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-800/40 hover:text-emerald-200 hover:border-emerald-400/60 transition-all duration-300 backdrop-blur-md shadow-[0_0_20px_rgba(16,185,129,0.15)]"
+        >
+          <Download size={18} className="group-hover:-translate-y-1 transition-transform" />
+          <span className="text-sm font-bold tracking-wide uppercase">Download Automation Tools Presentation</span>
+        </a>
+
         <div className="relative w-full max-w-md group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-500/50 group-focus-within:text-emerald-400 transition-colors" />
           <input 
@@ -294,9 +306,7 @@ export default function PackagesGrid({ isMounted = true }) {
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
           <div className="absolute inset-0 bg-[#020617]/90 backdrop-blur-xl" onClick={() => setSelectedBundle(null)}></div>
           
-          {/* EXPANDED MODAL WIDTH: changed max-w-5xl to max-w-[1400px] and w-[95vw] to take up most of large screens */}
           <div className="relative w-[95vw] max-w-[1400px] max-h-[85vh] bg-[#0A1025] rounded-3xl border border-emerald-500/30 shadow-[0_0_50px_rgba(16,185,129,0.2)] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-            {/* Header */}
             <div className="p-6 border-b border-emerald-900/30 flex justify-between items-center bg-emerald-950/10">
               <div>
                 <h3 className="text-xl font-bold text-white">{selectedBundle.name}</h3>
@@ -307,7 +317,6 @@ export default function PackagesGrid({ isMounted = true }) {
               </button>
             </div>
 
-            {/* List / Flex Container */}
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
               {isProductsLoading ? (
                 <div className="flex flex-col items-center justify-center h-full py-12 text-emerald-500 gap-3">
@@ -315,16 +324,9 @@ export default function PackagesGrid({ isMounted = true }) {
                   <span className="text-sm font-bold uppercase tracking-widest">Verifying Tools...</span>
                 </div>
               ) : bundleItems.length > 0 ? (
-                /* FLEXBOX IMPLEMENTATION:
-                  Using flex-wrap and justify-center guarantees that items wrap to the next line 
-                  and if the last line isn't full, it will automatically center the remaining items.
-                */
                 <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
                   {bundleItems.map((product) => (
-                    /* FIXED SMALLER CARDS: Limits width so many can fit in one row */
                     <div key={product.id} className="w-28 sm:w-32 flex flex-col items-center p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-emerald-500/30 transition-all group text-center">
-                      
-                      {/* SMALLER IMAGES: Fixed size constraint for the image container */}
                       <div className="w-16 h-16 sm:w-20 sm:h-20 mb-3 rounded-xl overflow-hidden bg-black border border-emerald-900/50 shrink-0">
                         {product.image ? (
                           <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
@@ -334,7 +336,6 @@ export default function PackagesGrid({ isMounted = true }) {
                           </div>
                         )}
                       </div>
-                      
                       <h5 className="font-bold text-white text-xs sm:text-sm leading-tight line-clamp-2">{product.name}</h5>
                     </div>
                   ))}
@@ -347,7 +348,6 @@ export default function PackagesGrid({ isMounted = true }) {
               )}
             </div>
 
-            {/* Footer */}
             <div className="p-6 border-t border-emerald-900/30 bg-emerald-950/20 flex justify-between items-center">
               <div className="flex flex-col items-start gap-1">
                 <span className="text-[10px] uppercase text-emerald-500/60 font-bold">Select Plan</span>
