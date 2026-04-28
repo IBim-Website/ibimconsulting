@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { categoriesList, packagesList } from './constants'; 
 import { useCart } from '@/app/CartContext'; // Added cart context import
+import { ReceiptTurkishLira } from 'lucide-react';
 
 const getEmbedUrl = (url) => {
   if (!url) return '';
@@ -112,7 +113,11 @@ export default function ToolsGrid({ isMounted }) {
     const pkgArray = Array.isArray(tool.package) ? tool.package : [tool.package || "None"];
     const matchesPackage = selectedPackage === "All" || selectedPackage === "All Tools" 
       ? true : pkgArray.some(p => p.toLowerCase() === selectedPackage.toLowerCase());
-    
+    if(searchQuery === ""){
+      return matchesCategory && matchesPackage
+    }else{
+       return matchesSearch
+    }
     return matchesSearch && matchesCategory && matchesPackage;
   });
 
@@ -232,12 +237,12 @@ export default function ToolsGrid({ isMounted }) {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-gradient-to-r from-cyan-500 to-blue-500"></span>
                   </span>
-                  <span>Imperial & Metric Supported . Tekla Version 2020 And Above</span>
+                  <span>Imperial & Metric Supported . Tekla Version 2022 And Above</span>
                 </div>
               </h2>
-              <span className="text-xs font-semibold text-cyan-300 px-3 py-1 bg-blue-950/60 rounded-md border border-blue-800/50 shadow-inner">
+              {/* <span className="text-xs font-semibold text-cyan-300 px-3 py-1 bg-blue-950/60 rounded-md border border-blue-800/50 shadow-inner">
                 {isLoading ? '...' : (filteredTools.length > 0 ? `${filteredTools.length} Loaded` : '0 Results')}
-              </span>
+              </span> */}
             </div>
 
             {isLoading && (
