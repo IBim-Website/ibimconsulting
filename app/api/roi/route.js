@@ -244,7 +244,7 @@ export async function POST(request) {
       const result = await sendRes.json();
       return NextResponse.json({
         success: true,
-        message: "Send roi results email successfully!",
+        message: "Send roi results successfully!",
       });
     }
   } catch (error) {
