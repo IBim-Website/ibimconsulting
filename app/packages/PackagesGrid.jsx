@@ -272,20 +272,14 @@ export default function PackagesGrid({ isMounted = true }) {
           </div>
         </div>
         {/* NEW ROI BUTTON */}
-        {/* <a
-          href="https://claude.ai/public/artifacts/f4d548c2-8e96-414a-91b1-d00ddafb5ae4"
-          target="_blank"
-          rel="noopener noreferrer"
+        <a
+          href="/roi"
           className="mb-8 group flex items-center gap-2 px-6 py-3 rounded-full bg-emerald-900/30 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-800/40 hover:text-emerald-200 hover:border-emerald-400/60 transition-all duration-300 backdrop-blur-md shadow-[0_0_20px_rgba(16,185,129,0.15)]"
         >
-          <Download
-            size={22}
-            className="group-hover:-translate-y-1 transition-transform"
-          />
           <span className="text-sm font-bold tracking-wide">
             Your Time And Cost Savings Calculator
           </span>
-        </a> */}
+        </a>
 
         {/* <div className="relative w-full max-w-md group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-500/50 group-focus-within:text-emerald-400 transition-colors" />

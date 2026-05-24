@@ -24,3 +24,42 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Custom range input track */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #1e2d42;
+  height: 5px;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4dc8f0;
+  cursor: pointer;
+  box-shadow: 0 0 0 4px rgba(77, 200, 240, 0.18);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4dc8f0;
+  border: none;
+  cursor: pointer;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
