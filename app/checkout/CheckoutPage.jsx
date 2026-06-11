@@ -237,6 +237,7 @@ export default function CheckoutPage() {
                       if (data.success) {
                         window.location.href = "/checkout/success";
                       } else {
+                        log("Email API Error:", data);
                         alert("Something went wrong. Please try again.");
                       }
                     }}
