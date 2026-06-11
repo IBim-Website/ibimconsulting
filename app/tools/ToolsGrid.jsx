@@ -97,6 +97,8 @@ export default function ToolsGrid({ isMounted }) {
             youtubeLink: parsedData.links?.youtubeLink || null,
             slug: formattedSlug,
             rawPricing: parsedData.pricing || {}, // Stored for cart accuracy
+            // url: parsedData.links?.downloadUrl || null, // Testing
+            url:'https://ibim-production.s3.us-east-1.amazonaws.com/products/Arrange_View_2.0.zip'
           };
         });
 
@@ -169,6 +171,7 @@ export default function ToolsGrid({ isMounted }) {
   const handleAddToCart = (e, tool) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log("Adding to cart:", tool);
 
     // Replicate default plan selection from ToolClient
     let planName = "Monthly";
@@ -204,6 +207,7 @@ export default function ToolsGrid({ isMounted }) {
       package: planName,
       image: tool.image,
       slug: tool.slug,
+      url:tool.url,
       pricingOptions: {
         monthly: tool.rawPricing.monthlyPrice
           ? parseFloat(tool.rawPricing.monthlyPrice)

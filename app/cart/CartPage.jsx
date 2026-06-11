@@ -39,7 +39,7 @@ export default function CartPage() {
   const handleQuantityChange = (id, delta) => {
     const item = cart.find(i => i.id === id);
     if (!item) return;
-    
+    console.log(item)
     const newQuantity = Math.max(1, (item.quantity || 1) + delta);
     updateCartItem(id, { quantity: newQuantity });
   };

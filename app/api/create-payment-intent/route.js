@@ -17,7 +17,8 @@ export async function POST(request) {
         type: isPackage ? 'PACKAGE' : 'PRODUCT',
         qty: item.quantity || 1,
         lic: licenseType,
-        price: item.price
+        price: item.price,
+        download_url: item.url || ""
       };
     });
 

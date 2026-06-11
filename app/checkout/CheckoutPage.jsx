@@ -6,17 +6,27 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import CheckoutForm from "@/components/CheckoutForm";
 import { useCart } from "@/app/CartContext";
-import { ShieldCheck, Lock, ChevronLeft, Package, Zap, Tag, Loader2 } from "lucide-react";
+import {
+  ShieldCheck,
+  Lock,
+  ChevronLeft,
+  Package,
+  Zap,
+  Tag,
+  Loader2,
+} from "lucide-react";
 
 // Initialize Stripe outside of the component render cycle
 const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
 );
 
 export default function CheckoutPage() {
   const { cart, isMounted } = useCart();
   const [clientSecret, setClientSecret] = useState("");
-  
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+
   // Promo Code State
   const [promoCodeInput, setPromoCodeInput] = useState("");
   const [activePromo, setActivePromo] = useState(null);
@@ -26,20 +36,20 @@ export default function CheckoutPage() {
   // 1. Calculate Base Subtotal
   const subtotal = cart.reduce(
     (total, item) => total + (item.price || 0) * (item.quantity || 1),
-    0
+    0,
   );
 
   // 2. Calculate Final Total (BULLETPROOF MATH)
   let finalTotal = subtotal;
-  
+
   if (activePromo) {
     const percentOff = Number(activePromo.percent_off);
     const amountOff = Number(activePromo.amount_off);
 
     if (!isNaN(percentOff) && percentOff > 0) {
-      finalTotal = subtotal * (1 - (percentOff / 100));
+      finalTotal = subtotal * (1 - percentOff / 100);
     } else if (!isNaN(amountOff) && amountOff > 0) {
-      finalTotal = Math.max(0, subtotal - (amountOff / 100));
+      finalTotal = Math.max(0, subtotal - amountOff / 100);
     }
   }
 
@@ -51,8 +61,8 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (amountInCents > 0) {
       // Clear old secret to show skeleton while fetching new price
-      setClientSecret(""); 
-      
+      setClientSecret("");
+
       fetch("/api/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -79,7 +89,7 @@ export default function CheckoutPage() {
       });
 
       const data = await response.json();
-      
+
       // DEBUG LOG: Remove this in production once you confirm it works!
       console.log("Stripe Promo Data Received:", data);
 
@@ -89,9 +99,11 @@ export default function CheckoutPage() {
 
       // Apply valid code
       setActivePromo(data);
-      setPromoMessage({ type: "success", text: "Discount applied successfully!" });
+      setPromoMessage({
+        type: "success",
+        text: "Discount applied successfully!",
+      });
       setPromoCodeInput("");
-
     } catch (error) {
       setActivePromo(null);
       setPromoMessage({ type: "error", text: error.message });
@@ -133,8 +145,13 @@ export default function CheckoutPage() {
   if (cart.length === 0) {
     return (
       <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-6">
-        <h2 className="text-2xl font-bold text-white mb-4">Your cart is empty</h2>
-        <Link href="/cart" className="text-cyan-400 hover:text-cyan-300 flex items-center gap-2 transition-colors">
+        <h2 className="text-2xl font-bold text-white mb-4">
+          Your cart is empty
+        </h2>
+        <Link
+          href="/cart"
+          className="text-cyan-400 hover:text-cyan-300 flex items-center gap-2 transition-colors"
+        >
           <ChevronLeft size={20} /> Return to Cart
         </Link>
       </div>
@@ -144,7 +161,10 @@ export default function CheckoutPage() {
   return (
     <div className="relative z-10 mx-auto max-w-[1200px] px-6 pt-32 pb-24 min-h-screen">
       <div className="flex flex-col mb-10 animate-in fade-in slide-in-from-left-4 duration-500">
-        <Link href="/cart" className="inline-flex items-center gap-2 text-sm font-bold text-blue-400/70 hover:text-cyan-400 transition-colors mb-6 w-fit">
+        <Link
+          href="/cart"
+          className="inline-flex items-center gap-2 text-sm font-bold text-blue-400/70 hover:text-cyan-400 transition-colors mb-6 w-fit"
+        >
           <ChevronLeft size={16} /> Return to Cart
         </Link>
         <div className="flex items-center gap-4">
@@ -165,22 +185,74 @@ export default function CheckoutPage() {
 
             {amountInCents === 0 ? (
               // STRIPE BYPASS: 100% Off Scenario
-              <div className="text-center py-10 bg-emerald-500/10 border border-emerald-500/20 rounded-xl animate-in fade-in zoom-in-95">
-                <h3 className="text-emerald-400 font-bold text-xl mb-2">Your order is free!</h3>
-                <p className="text-blue-200/60 mb-6 text-sm">No credit card required.</p>
-                <button 
-                  onClick={() => {
-                    // Route them to success or fulfill the order directly
-                    window.location.href = '/checkout/success'; 
-                  }}
-                  className="bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)]"
-                >
-                  Complete Free Order
-                </button>
+              <div>
+                <div className="space-y-4 mb-8">
+                  <div>
+                    <label className="block text-xs font-bold text-blue-300 mb-1">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      placeholder="IBim Consulting"
+                      className="w-full bg-[#020617] border border-blue-900/50 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-blue-300 mb-1">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      placeholder="info@ibimconsulting.com"
+                      className="w-full bg-[#020617] border border-blue-900/50 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                    />
+                  </div>
+                </div>
+                <div className="text-center py-10 bg-emerald-500/10 border border-emerald-500/20 rounded-xl animate-in fade-in zoom-in-95">
+                  <h3 className="text-emerald-400 font-bold text-xl mb-2">
+                    Your order is free!
+                  </h3>
+                  <p className="text-blue-200/60 mb-6 text-sm">
+                    No credit card required.
+                  </p>
+
+                  <button
+                    onClick={async () => {
+                      const payload = {
+                        cart: cart,
+                        customer: { name, email },
+                      };
+                      const response = await fetch("/api/email", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                      });
+                      const data = await response.json();
+                      if (data.success) {
+                        window.location.href = "/checkout/success";
+                      } else {
+                        alert("Something went wrong. Please try again.");
+                      }
+                    }}
+                    className="bg-emerald-500 hover:bg-emerald-400 text-white font-black uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                  >
+                    Complete Free Order
+                  </button>
+                </div>
               </div>
             ) : clientSecret ? (
               // STANDARD STRIPE CHECKOUT
-              <Elements key={clientSecret} options={{ clientSecret, appearance }} stripe={stripePromise}>
+              <Elements
+                key={clientSecret}
+                options={{ clientSecret, appearance }}
+                stripe={stripePromise}
+              >
                 <CheckoutForm amount={amountInCents} />
               </Elements>
             ) : (
@@ -244,7 +316,7 @@ export default function CheckoutPage() {
                           {item.name}
                         </h4>
                         <span className="text-sm font-bold text-cyan-400">
-                          AU${((item.price * itemQuantity)).toFixed(2)}
+                          AU${(item.price * itemQuantity).toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
@@ -271,21 +343,31 @@ export default function CheckoutPage() {
                     placeholder="Promo code"
                     value={promoCodeInput}
                     onChange={(e) => setPromoCodeInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
+                    onKeyDown={(e) => e.key === "Enter" && handleApplyPromo()}
                     className="w-full bg-[#020617] border border-blue-900/50 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-blue-400/30 focus:outline-none focus:border-cyan-400 transition-colors uppercase"
                   />
                 </div>
-                <button 
+                <button
                   onClick={handleApplyPromo}
-                  disabled={!promoCodeInput.trim() || isPromoLoading || (!clientSecret && amountInCents > 0)}
+                  disabled={
+                    !promoCodeInput.trim() ||
+                    isPromoLoading ||
+                    (!clientSecret && amountInCents > 0)
+                  }
                   className="px-5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center min-w-[80px]"
                 >
-                  {isPromoLoading ? <Loader2 size={16} className="animate-spin" /> : "Apply"}
+                  {isPromoLoading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    "Apply"
+                  )}
                 </button>
               </div>
-              
+
               {promoMessage.text && (
-                <p className={`text-xs mt-3 font-medium ${promoMessage.type === 'error' ? 'text-red-400' : 'text-emerald-400'}`}>
+                <p
+                  className={`text-xs mt-3 font-medium ${promoMessage.type === "error" ? "text-red-400" : "text-emerald-400"}`}
+                >
                   {promoMessage.text}
                 </p>
               )}
@@ -303,16 +385,27 @@ export default function CheckoutPage() {
               {activePromo && (
                 <div className="flex justify-between items-center text-emerald-400 bg-emerald-400/5 p-3 rounded-xl border border-emerald-400/10 animate-in fade-in zoom-in-95">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold">Discount ({activePromo.code})</span>
-                    <button onClick={removePromo} className="text-emerald-400/50 hover:text-red-400 text-xs underline transition-colors">Remove</button>
+                    <span className="font-bold">
+                      Discount ({activePromo.code})
+                    </span>
+                    <button
+                      onClick={removePromo}
+                      className="text-emerald-400/50 hover:text-red-400 text-xs underline transition-colors"
+                    >
+                      Remove
+                    </button>
                   </div>
-                  <span className="font-bold">-AU${(subtotal - finalTotal).toFixed(2)}</span>
+                  <span className="font-bold">
+                    -AU${(subtotal - finalTotal).toFixed(2)}
+                  </span>
                 </div>
               )}
 
               <div className="flex justify-between items-center text-blue-200/60">
                 <span>Taxes</span>
-                <span className="text-white font-medium">Calculated at next step</span>
+                <span className="text-white font-medium">
+                  Calculated at next step
+                </span>
               </div>
             </div>
 
