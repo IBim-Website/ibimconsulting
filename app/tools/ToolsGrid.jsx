@@ -97,8 +97,7 @@ export default function ToolsGrid({ isMounted }) {
             youtubeLink: parsedData.links?.youtubeLink || null,
             slug: formattedSlug,
             rawPricing: parsedData.pricing || {}, // Stored for cart accuracy
-            // url: parsedData.links?.downloadUrl || null, // Testing
-            url:'https://ibim-production.s3.us-east-1.amazonaws.com/products/Arrange_View_2.0.zip'
+            url: parsedData.links?.downloadUrl || 'https://ibim-production.s3.us-east-1.amazonaws.com/products/Arrange_View_2.0.zip'
           };
         });
 
