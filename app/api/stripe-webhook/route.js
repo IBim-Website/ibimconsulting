@@ -70,6 +70,7 @@ export async function POST(request) {
         // Grabs the metadata, defaults to 'ONE_TIME', converts to uppercase, and replaces dashes/spaces with underscores.
         // e.g., "One-Time" -> "ONE_TIME", "Floating" -> "FLOATING", "Monthly" -> "MONTHLY"
         const rawPackage = price.metadata.package_type || 'ONE_TIME';
+        const downloadUrl = price.metadata.download_url || "";
         const licenseType = rawPackage.toUpperCase().replace(/[- ]/g, '_');
 
         // Determine if it is a PACKAGE or PRODUCT.
@@ -81,7 +82,8 @@ export async function POST(request) {
           type: itemType,
           quantity: item.quantity,
           unit_price: price.unit_amount / 100, 
-          total_price: item.amount_total / 100, 
+          total_price: item.amount_total / 100,  
+          download_url: downloadUrl
         };
 
         if (itemType === 'PACKAGE') {

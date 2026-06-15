@@ -120,9 +120,11 @@ export default function PackagesGrid({ isMounted = true }) {
             slug: (record.package_code || "unnamed")
               .toLowerCase()
               .replace(/[_ ]+/g, "-"),
+            downloadUrl: record.downloadUrl || "",
           };
         });
         mappedPackages.sort((a, b) => a.name.localeCompare(b.name));
+        // console.log("Fetched Packages:", mappedPackages);
         setPackages((prev) =>
           page === 1 ? mappedPackages : [...prev, ...mappedPackages],
         );
@@ -500,6 +502,7 @@ export default function PackagesGrid({ isMounted = true }) {
                       pricingOptions: selectedBundle.pricingOptions,
                       groupType: selectedBundle.groupType,
                       products: selectedBundle.products,
+                      downloadUrl: selectedBundle.downloadUrl,
                       slug: selectedBundle.slug,
                     });
                   }

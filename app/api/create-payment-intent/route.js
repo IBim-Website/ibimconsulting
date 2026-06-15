@@ -12,13 +12,14 @@ export async function POST(request) {
       const rawPackage = item.package || 'ONE_TIME';
       const licenseType = rawPackage.toUpperCase().replace(/[- ]/g, '_');
       
+      console.log(item)
       return {
         id: item.id, // Assuming this maps to your crm_id
         type: isPackage ? 'PACKAGE' : 'PRODUCT',
         qty: item.quantity || 1,
         lic: licenseType,
         price: item.price,
-        download_url: item.url || ""
+        download_url: item.downloadUrl || ""
       };
     });
 

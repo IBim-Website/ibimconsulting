@@ -64,7 +64,7 @@ export default function CheckoutForm({ amount }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            placeholder="John Doe"
+            placeholder="IBim Consulting"
             className="w-full bg-[#020617] border border-blue-900/50 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors"
           />
         </div>
@@ -77,7 +77,7 @@ export default function CheckoutForm({ amount }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            placeholder="john@example.com"
+            placeholder="info@ibimconsulting.com"
             className="w-full bg-[#020617] border border-blue-900/50 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors"
           />
         </div>

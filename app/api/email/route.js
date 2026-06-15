@@ -47,7 +47,7 @@ export async function POST(request) {
         unit_price: 0,
         total_price: 0,
         product_id: item.id,
-        download_url: item.url || "",
+        download_url: item.downloadUrl || "",
       };
       return mappedItem;
     });

@@ -57,7 +57,6 @@ export default function CheckoutPage() {
   const amountInCents = Math.round(finalTotal * 100);
 
   // 4. Fetch Payment Intent when amount changes
-  // 4. Fetch Payment Intent when amount changes
   useEffect(() => {
     if (amountInCents > 0) {
       // Clear old secret to show skeleton while fetching new price
