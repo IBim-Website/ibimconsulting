@@ -51,7 +51,6 @@ export default function ToolsGrid({ isMounted }) {
           throw new Error(result.error || "Failed to fetch tools");
 
         const fetchedRecords = result.records || [];
-        console.log(fetchedRecords);
         fetchedRecords.sort((a, b) =>
           a.product_name.localeCompare(b.product_name),
         );
@@ -170,7 +169,7 @@ export default function ToolsGrid({ isMounted }) {
   const handleAddToCart = (e, tool) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log("Adding to cart:", tool);
+    // console.log("Adding to cart:", tool);
 
     // Replicate default plan selection from ToolClient
     let planName = "Monthly";

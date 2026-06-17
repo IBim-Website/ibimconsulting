@@ -37,7 +37,8 @@ async function getBackofficeToken() {
 
 export async function POST(request) {
   try {
-    const body = await request.text();
+    const rawbody = await request.arrayBuffer();
+    const body = Buffer.from(rawbody)
     const signature = request.headers.get('stripe-signature');
 
     let event;
@@ -50,6 +51,7 @@ export async function POST(request) {
       return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
     }
 
+    console.log(`✅ Webhook received: ${event.type}`);
     // 2. HANDLE SUCCESSFUL CHECKOUT
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;

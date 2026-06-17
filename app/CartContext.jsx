@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useCallback,
+  useState,
+  useEffect,
+} from "react";
 
 const CartContext = createContext();
 
@@ -11,7 +17,7 @@ export function CartProvider({ children }) {
   // 1. Load cart from local storage on initial mount
   useEffect(() => {
     setIsMounted(true);
-    const savedCart = localStorage.getItem('tools-cart');
+    const savedCart = localStorage.getItem("tools-cart");
     if (savedCart) {
       try {
         setCart(JSON.parse(savedCart));
@@ -24,7 +30,7 @@ export function CartProvider({ children }) {
   // 2. Sync cart to local storage whenever it changes
   useEffect(() => {
     if (isMounted) {
-      localStorage.setItem('tools-cart', JSON.stringify(cart));
+      localStorage.setItem("tools-cart", JSON.stringify(cart));
     }
   }, [cart, isMounted]);
 
@@ -33,7 +39,7 @@ export function CartProvider({ children }) {
     setCart((prevCart) => {
       // Prevent adding duplicates if it's a one-time digital tool
       if (prevCart.some((item) => item.id === product.id)) return prevCart;
-      
+
       // Ensure the product gets a default quantity of 1 when added
       return [...prevCart, { quantity: 1, ...product }];
     });
@@ -45,24 +51,30 @@ export function CartProvider({ children }) {
 
   // NEW: Update specific properties of an item (like quantity or package type/price)
   const updateCartItem = (productId, updates) => {
-    setCart((prevCart) => 
-      prevCart.map((item) => 
-        item.id === productId ? { ...item, ...updates } : item
-      )
+    setCart((prevCart) =>
+      prevCart.map((item) =>
+        item.id === productId ? { ...item, ...updates } : item,
+      ),
     );
   };
 
-  const clearCart = () => setCart([]);
+  // const clearCart = () => setCart([]);
+  const clearCart = useCallback(() => {
+    setCart([]);
+    localStorage.removeItem("tools-cart"); 
+  }, []);
 
   return (
-    <CartContext.Provider value={{ 
-      cart, 
-      addToCart, 
-      removeFromCart, 
-      updateCartItem, // Make sure to export this here!
-      clearCart, 
-      isMounted 
-    }}>
+    <CartContext.Provider
+      value={{
+        cart,
+        addToCart,
+        removeFromCart,
+        updateCartItem, // Make sure to export this here!
+        clearCart,
+        isMounted,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );

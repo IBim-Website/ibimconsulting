@@ -12,7 +12,6 @@ export async function POST(request) {
       const rawPackage = item.package || 'ONE_TIME';
       const licenseType = rawPackage.toUpperCase().replace(/[- ]/g, '_');
       
-      console.log(item)
       return {
         id: item.id, // Assuming this maps to your crm_id
         type: isPackage ? 'PACKAGE' : 'PRODUCT',
@@ -32,9 +31,11 @@ export async function POST(request) {
         cart_items: JSON.stringify(compressedCart),
       },
     });
+    console.log("Created PaymentIntent with ID:", paymentIntent);
 
     return Response.json({ clientSecret: paymentIntent.client_secret });
   } catch (error) {
+    console.error("Error creating PaymentIntent:", error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
